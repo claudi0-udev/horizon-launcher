@@ -38,6 +38,7 @@ fun TopStatusBar(
     userProfile: UserProfile,
     batteryLevel: Int,
     isDarkTheme: Boolean,
+    isLandscape: Boolean,
     onToggleTheme: () -> Unit,
     focusRequester: FocusRequester = remember { FocusRequester() },
     modifier: Modifier = Modifier
@@ -59,27 +60,30 @@ fun TopStatusBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 12.dp),
+            .padding(
+                horizontal = if (isLandscape) 24.dp else 14.dp,
+                vertical = if (isLandscape) 12.dp else 8.dp
+            ),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Profile Avatar & Google Account Name
+        // Left Profile Avatar & Account Name
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(if (isLandscape) 12.dp else 8.dp),
             modifier = Modifier
                 .focusRequester(focusRequester)
                 .focusable(interactionSource = interactionSource)
                 .clickable { onToggleTheme() }
-                .padding(4.dp)
+                .padding(2.dp)
         ) {
             Box(
                 modifier = Modifier
-                    .size(46.dp)
+                    .size(if (isLandscape) 46.dp else 40.dp)
                     .clip(CircleShape)
                     .background(AccentRed)
                     .border(
-                        if (isFocused) 4.dp else 2.dp,
+                        if (isFocused) 3.5.dp else 2.dp,
                         if (isFocused) Color.Yellow else AccentCyan,
                         CircleShape
                     ),
@@ -100,7 +104,7 @@ fun TopStatusBar(
                         Text(
                             text = initial,
                             color = Color.White,
-                            fontSize = 22.sp,
+                            fontSize = if (isLandscape) 22.sp else 18.sp,
                             fontWeight = FontWeight.Bold
                         )
                     } else {
@@ -108,7 +112,7 @@ fun TopStatusBar(
                             imageVector = Icons.Default.Person,
                             contentDescription = "User Profile",
                             tint = Color.White,
-                            modifier = Modifier.size(26.dp)
+                            modifier = Modifier.size(if (isLandscape) 26.dp else 22.dp)
                         )
                     }
                 }
@@ -117,11 +121,11 @@ fun TopStatusBar(
             Column {
                 Text(
                     text = userProfile.name,
-                    fontSize = 15.sp,
+                    fontSize = if (isLandscape) 15.sp else 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = textColor
                 )
-                if (!userProfile.email.isNullOrBlank()) {
+                if (isLandscape && !userProfile.email.isNullOrBlank()) {
                     Text(
                         text = userProfile.email,
                         fontSize = 11.sp,
@@ -131,29 +135,29 @@ fun TopStatusBar(
             }
         }
 
-        // Status indicators: Wi-Fi, Real-time Battery, Digital Clock
+        // Right Status indicators: Wi-Fi, Real-time Battery, Adapting Clock
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+            horizontalArrangement = Arrangement.spacedBy(if (isLandscape) 16.dp else 8.dp)
         ) {
             Icon(
                 imageVector = Icons.Default.Wifi,
                 contentDescription = "Wi-Fi",
                 tint = textColor,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(if (isLandscape) 20.dp else 16.dp)
             )
 
-            // Real Battery Level Indicator
+            // Real Battery Indicator
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(3.dp)
             ) {
                 Box(
                     modifier = Modifier
-                        .width(22.dp)
-                        .height(12.dp)
-                        .border(1.5.dp, textColor)
-                        .padding(1.5.dp)
+                        .width(if (isLandscape) 22.dp else 18.dp)
+                        .height(if (isLandscape) 12.dp else 10.dp)
+                        .border(1.2.dp, textColor)
+                        .padding(1.2.dp)
                 ) {
                     val fillRatio = (batteryLevel.coerceIn(0, 100) / 100f)
                     val batteryColor = when {
@@ -170,18 +174,46 @@ fun TopStatusBar(
                 }
                 Text(
                     text = "$batteryLevel%",
-                    fontSize = 13.sp,
+                    fontSize = if (isLandscape) 13.sp else 11.sp,
                     fontWeight = FontWeight.Medium,
                     color = textColor
                 )
             }
 
-            Text(
-                text = currentTime,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = textColor
-            )
+            // Adapted Clock Display for Portrait & Landscape
+            if (isLandscape) {
+                Text(
+                    text = currentTime,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = textColor
+                )
+            } else {
+                // Stacked compact vertical clock: HH on top, mm on bottom without colon
+                val hours = if (currentTime.contains(":")) currentTime.substringBefore(":") else "00"
+                val minutes = if (currentTime.contains(":")) currentTime.substringAfter(":") else "00"
+                
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier.padding(start = 2.dp)
+                ) {
+                    Text(
+                        text = hours,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        lineHeight = 12.sp,
+                        color = textColor
+                    )
+                    Text(
+                        text = minutes,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        lineHeight = 12.sp,
+                        color = textColor
+                    )
+                }
+            }
         }
     }
 }

@@ -38,6 +38,7 @@ data class ActionButton(
 @Composable
 fun BottomActionBar(
     isDarkTheme: Boolean,
+    isLandscape: Boolean,
     onOpenBrowser: () -> Unit,
     onOpenGallery: () -> Unit,
     onOpenControllers: () -> Unit,
@@ -47,7 +48,7 @@ fun BottomActionBar(
     focusRequesters: List<FocusRequester> = emptyList(),
     modifier: Modifier = Modifier
 ) {
-    val buttons = listOf(
+    val allButtons = listOf(
         ActionButton(
             id = "browser",
             title = "Navegador",
@@ -92,10 +93,15 @@ fun BottomActionBar(
         )
     )
 
+    // Hide "all_apps" button in Portrait mode since all apps are already displayed in the vertical grid
+    val activeButtons = remember(isLandscape) {
+        if (isLandscape) allButtons else allButtons.filter { it.id != "all_apps" }
+    }
+
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 16.dp),
+            .padding(vertical = if (isLandscape) 14.dp else 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(
@@ -105,14 +111,14 @@ fun BottomActionBar(
                 .background(if (isDarkTheme) Color(0xFF424242) else Color(0xFFDCDCDC))
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(if (isLandscape) 14.dp else 10.dp))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            buttons.forEachIndexed { idx, btn ->
+            activeButtons.forEachIndexed { idx, btn ->
                 val interactionSource = remember { MutableInteractionSource() }
                 val isFocused by interactionSource.collectIsFocusedAsState()
                 val itemRequester = focusRequesters.getOrNull(idx) ?: remember { FocusRequester() }
@@ -126,11 +132,11 @@ fun BottomActionBar(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(54.dp)
+                            .size(if (isLandscape) 52.dp else 46.dp)
                             .clip(CircleShape)
                             .background(btn.color)
                             .border(
-                                if (isFocused) 4.dp else 2.dp,
+                                if (isFocused) 3.5.dp else 2.dp,
                                 if (isFocused) Color.Yellow else if (isDarkTheme) Color.White.copy(alpha = 0.3f) else Color.Black.copy(alpha = 0.15f),
                                 CircleShape
                             ),
@@ -140,15 +146,15 @@ fun BottomActionBar(
                             imageVector = btn.icon,
                             contentDescription = btn.title,
                             tint = Color.White,
-                            modifier = Modifier.size(28.dp)
+                            modifier = Modifier.size(if (isLandscape) 26.dp else 22.dp)
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
                         text = btn.title,
-                        fontSize = 11.sp,
+                        fontSize = if (isLandscape) 11.sp else 9.5.sp,
                         fontWeight = if (isFocused) FontWeight.Bold else FontWeight.Medium,
                         color = if (isFocused) AccentCyan else if (isDarkTheme) Color.LightGray else Color.DarkGray
                     )

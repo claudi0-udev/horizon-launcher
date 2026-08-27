@@ -282,6 +282,7 @@ fun HorizonHomeScreen(
                 userProfile = userProfile,
                 batteryLevel = batteryLevel,
                 isDarkTheme = isDarkTheme,
+                isLandscape = isLandscape,
                 onToggleTheme = onToggleTheme,
                 focusRequester = topBarFocusRequester
             )
@@ -291,7 +292,6 @@ fun HorizonHomeScreen(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.Center
             ) {
-                // Search Bar + Category Controls Row
                 if (isLandscape) {
                     Row(
                         modifier = Modifier
@@ -324,12 +324,11 @@ fun HorizonHomeScreen(
                         )
                     }
                 } else {
-                    // Portrait orientation: Stack Search Bar and Category Tabs cleanly
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 4.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                            .padding(horizontal = 16.dp, vertical = 2.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         SearchBarField(
@@ -341,7 +340,7 @@ fun HorizonHomeScreen(
                             isDarkTheme = isDarkTheme,
                             isFocused = focusedSection == FocusedSection.SEARCH_BAR,
                             focusRequester = searchBarFocusRequester,
-                            modifier = Modifier.fillMaxWidth(0.95f)
+                            modifier = Modifier.fillMaxWidth(0.96f)
                         )
 
                         CategoryTabs(
@@ -357,7 +356,7 @@ fun HorizonHomeScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
                 // App Grid / Carousel Content
                 if (isLoading) {
@@ -384,7 +383,6 @@ fun HorizonHomeScreen(
                     }
                 } else {
                     if (isLandscape) {
-                        // Horizontal Carousel for Landscape Mode
                         LazyRow(
                             state = lazyListState,
                             contentPadding = PaddingValues(horizontal = 32.dp),
@@ -408,13 +406,12 @@ fun HorizonHomeScreen(
                             }
                         }
                     } else {
-                        // Responsive 3-Column Vertical Grid for Portrait Mode
                         LazyVerticalGrid(
                             columns = GridCells.Fixed(3),
                             state = lazyGridState,
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
                             modifier = Modifier.fillMaxSize()
                         ) {
                             itemsIndexed(filteredApps) { index, app ->
@@ -437,6 +434,7 @@ fun HorizonHomeScreen(
             // 3. Bottom Action Bar
             BottomActionBar(
                 isDarkTheme = isDarkTheme,
+                isLandscape = isLandscape,
                 onOpenBrowser = { launchBrowser() },
                 onOpenGallery = { launchGallery() },
                 onOpenControllers = { launchControllersSettings() },
