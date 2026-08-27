@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.sp
 import com.horizon.launcher.admin.LauncherAdminReceiver
 import com.horizon.launcher.model.AppModel
 import com.horizon.launcher.model.UserProfile
+import com.horizon.launcher.ui.components.AllAppsDrawer
 import com.horizon.launcher.ui.components.AppCard
 import com.horizon.launcher.ui.components.BottomActionBar
 import com.horizon.launcher.ui.components.TopStatusBar
@@ -83,6 +84,7 @@ fun HorizonHomeScreen(
     var searchQuery by remember { mutableStateOf("") }
     var selectedAppIndex by remember { mutableIntStateOf(0) }
     var focusedSection by remember { mutableStateOf(FocusedSection.CAROUSEL) }
+    var isAllAppsDrawerOpen by remember { mutableStateOf(false) }
 
     val filteredApps = remember(appsList, selectedCategory, searchQuery) {
         appsList.filter { app ->
@@ -457,14 +459,23 @@ fun HorizonHomeScreen(
                 onOpenSettings = { launchSystemSettings() },
                 onOpenPower = { launchPowerStandby() },
                 onOpenAllApps = {
-                    selectedCategory = FilterCategory.ALL
-                    searchQuery = ""
-                    selectedAppIndex = 0
-                    focusedSection = FocusedSection.CAROUSEL
+                    isAllAppsDrawerOpen = true
                 },
                 focusRequesters = bottomBarFocusRequesters
             )
         }
+
+        // Fullscreen All Apps Drawer Modal
+        AllAppsDrawer(
+            isOpen = isAllAppsDrawerOpen,
+            appsList = appsList,
+            isDarkTheme = isDarkTheme,
+            onDismiss = { isAllAppsDrawerOpen = false },
+            onLaunchApp = { app ->
+                onLaunchApp(app)
+                isAllAppsDrawerOpen = false
+            }
+        )
     }
 }
 

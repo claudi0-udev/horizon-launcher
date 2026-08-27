@@ -48,7 +48,7 @@ fun BottomActionBar(
     focusRequesters: List<FocusRequester> = emptyList(),
     modifier: Modifier = Modifier
 ) {
-    val allButtons = listOf(
+    val activeButtons = listOf(
         ActionButton(
             id = "browser",
             title = "Navegador",
@@ -93,15 +93,11 @@ fun BottomActionBar(
         )
     )
 
-    val activeButtons = remember(isLandscape) {
-        if (isLandscape) allButtons else allButtons.filter { it.id != "all_apps" }
-    }
-
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .navigationBarsPadding() // Ensures system navigation bar (back/home/recents) never overlaps action buttons
-            .padding(vertical = if (isLandscape) 12.dp else 12.dp),
+            .navigationBarsPadding()
+            .padding(vertical = if (isLandscape) 12.dp else 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(
