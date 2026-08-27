@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.sp
 import com.horizon.launcher.admin.LauncherAdminReceiver
 import com.horizon.launcher.model.AppModel
 import com.horizon.launcher.model.UserProfile
+import com.horizon.launcher.ui.components.ActiveAppsDrawer
 import com.horizon.launcher.ui.components.AllAppsDrawer
 import com.horizon.launcher.ui.components.AppCard
 import com.horizon.launcher.ui.components.BottomActionBar
@@ -85,6 +86,7 @@ fun HorizonHomeScreen(
     var selectedAppIndex by remember { mutableIntStateOf(0) }
     var focusedSection by remember { mutableStateOf(FocusedSection.CAROUSEL) }
     var isAllAppsDrawerOpen by remember { mutableStateOf(false) }
+    var isActiveAppsDrawerOpen by remember { mutableStateOf(false) }
 
     val filteredApps = remember(appsList, selectedCategory, searchQuery) {
         appsList.filter { app ->
@@ -113,7 +115,7 @@ fun HorizonHomeScreen(
 
     val topBarFocusRequester = remember { FocusRequester() }
     val searchBarFocusRequester = remember { FocusRequester() }
-    val bottomBarFocusRequesters = remember { List(6) { FocusRequester() } }
+    val bottomBarFocusRequesters = remember { List(8) { FocusRequester() } }
 
     val backgroundColor = if (isDarkTheme) DarkBg else LightBg
 
@@ -192,6 +194,23 @@ fun HorizonHomeScreen(
                 val intent = Intent(Settings.ACTION_DISPLAY_SETTINGS)
                 context.startActivity(intent)
             } catch (_: Exception) {}
+        }
+    }
+
+    fun launchHomeSettingsPicker() {
+        try {
+            val intent = Intent(Settings.ACTION_HOME_SETTINGS)
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            try {
+                val intent = Intent(Intent.ACTION_MAIN).apply {
+                    addCategory(Intent.CATEGORY_HOME)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                context.startActivity(Intent.createChooser(intent, "Seleccionar launcher predeterminado"))
+            } catch (ex: Exception) {
+                Toast.makeText(context, "Abre Ajustes > Aplicaciones > Aplicación de Inicio predeterminada", Toast.LENGTH_LONG).show()
+            }
         }
     }
 
@@ -455,12 +474,12 @@ fun HorizonHomeScreen(
                 isLandscape = isLandscape,
                 onOpenBrowser = { launchBrowser() },
                 onOpenGallery = { launchGallery() },
+                onOpenActiveApps = { isActiveAppsDrawerOpen = true },
                 onOpenControllers = { launchControllersSettings() },
                 onOpenSettings = { launchSystemSettings() },
+                onOpenLauncherPicker = { launchHomeSettingsPicker() },
                 onOpenPower = { launchPowerStandby() },
-                onOpenAllApps = {
-                    isAllAppsDrawerOpen = true
-                },
+                onOpenAllApps = { isAllAppsDrawerOpen = true },
                 focusRequesters = bottomBarFocusRequesters
             )
         }
@@ -474,6 +493,18 @@ fun HorizonHomeScreen(
             onLaunchApp = { app ->
                 onLaunchApp(app)
                 isAllAppsDrawerOpen = false
+            }
+        )
+
+        // Active Apps / Task Manager Drawer Modal
+        ActiveAppsDrawer(
+            isOpen = isActiveAppsDrawerOpen,
+            allApps = appsList,
+            isDarkTheme = isDarkTheme,
+            onDismiss = { isActiveAppsDrawerOpen = false },
+            onLaunchApp = { app ->
+                onLaunchApp(app)
+                isActiveAppsDrawerOpen = false
             }
         )
     }

@@ -44,6 +44,8 @@ fun BottomActionBar(
     onOpenControllers: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenPower: () -> Unit,
+    onOpenActiveApps: () -> Unit,
+    onOpenLauncherPicker: () -> Unit,
     onOpenAllApps: () -> Unit,
     focusRequesters: List<FocusRequester> = emptyList(),
     modifier: Modifier = Modifier
@@ -64,6 +66,13 @@ fun BottomActionBar(
             onClick = onOpenGallery
         ),
         ActionButton(
+            id = "active_apps",
+            title = "Activas",
+            icon = Icons.Default.Layers,
+            color = Color(0xFF9C27B0),
+            onClick = onOpenActiveApps
+        ),
+        ActionButton(
             id = "controllers",
             title = "Mandos",
             icon = Icons.Default.Gamepad,
@@ -72,21 +81,28 @@ fun BottomActionBar(
         ),
         ActionButton(
             id = "settings",
-            title = "Configuración",
+            title = "Ajustes",
             icon = Icons.Default.Settings,
             color = Color(0xFF78909C),
             onClick = onOpenSettings
         ),
         ActionButton(
+            id = "switch_launcher",
+            title = "Launcher",
+            icon = Icons.Default.SwapHoriz,
+            color = Color(0xFF673AB7),
+            onClick = onOpenLauncherPicker
+        ),
+        ActionButton(
             id = "power",
-            title = "Modo de espera",
+            title = "Espera",
             icon = Icons.Default.PowerSettingsNew,
             color = Color(0xFF546E7A),
             onClick = onOpenPower
         ),
         ActionButton(
             id = "all_apps",
-            title = "Todas las apps",
+            title = "Todas",
             icon = Icons.Default.GridView,
             color = AccentCyan,
             onClick = onOpenAllApps
@@ -97,17 +113,17 @@ fun BottomActionBar(
         modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(vertical = if (isLandscape) 12.dp else 10.dp),
+            .padding(vertical = if (isLandscape) 10.dp else 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth(0.92f)
+                .fillMaxWidth(0.94f)
                 .height(1.dp)
                 .background(if (isDarkTheme) Color(0xFF424242) else Color(0xFFDCDCDC))
         )
 
-        Spacer(modifier = Modifier.height(if (isLandscape) 12.dp else 8.dp))
+        Spacer(modifier = Modifier.height(if (isLandscape) 10.dp else 6.dp))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -128,7 +144,7 @@ fun BottomActionBar(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(if (isLandscape) 52.dp else 44.dp)
+                            .size(if (isLandscape) 48.dp else 42.dp)
                             .clip(CircleShape)
                             .background(btn.color)
                             .border(
@@ -142,15 +158,15 @@ fun BottomActionBar(
                             imageVector = btn.icon,
                             contentDescription = btn.title,
                             tint = Color.White,
-                            modifier = Modifier.size(if (isLandscape) 26.dp else 20.dp)
+                            modifier = Modifier.size(if (isLandscape) 24.dp else 20.dp)
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(3.dp))
 
                     Text(
                         text = btn.title,
-                        fontSize = if (isLandscape) 11.sp else 9.sp,
+                        fontSize = if (isLandscape) 10.5.sp else 8.5.sp,
                         fontWeight = if (isFocused) FontWeight.Bold else FontWeight.Medium,
                         color = if (isFocused) AccentCyan else if (isDarkTheme) Color.LightGray else Color.DarkGray
                     )
