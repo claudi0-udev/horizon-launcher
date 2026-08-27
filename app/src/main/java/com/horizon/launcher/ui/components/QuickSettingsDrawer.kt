@@ -1,6 +1,7 @@
 package com.horizon.launcher.ui.components
 
 import android.content.Context
+import android.content.Intent
 import android.media.AudioManager
 import android.provider.Settings
 import android.view.KeyEvent
@@ -10,6 +11,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -56,6 +59,17 @@ fun QuickSettingsDrawer(
     val backgroundColor = if (isDarkTheme) DarkBg else LightBg
     val textColor = if (isDarkTheme) Color.White else Color(0xFF2D2D2D)
 
+    fun launchAndroidSettings() {
+        try {
+            soundManager.playSelectSound()
+            val intent = Intent(Settings.ACTION_SETTINGS)
+            context.startActivity(intent)
+            onDismiss()
+        } catch (e: Exception) {
+            Toast.makeText(context, "No se pudo abrir Ajustes", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -89,7 +103,7 @@ fun QuickSettingsDrawer(
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column(
-                        verticalArrangement = Arrangement.spacedBy(18.dp)
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         // Title & Close
                         Row(
@@ -112,13 +126,47 @@ fun QuickSettingsDrawer(
                             }
                         }
 
-                        Divider(color = if (isDarkTheme) Color.DarkGray else Color.LightGray)
+                        HorizontalDivider(color = if (isDarkTheme) Color.DarkGray else Color.LightGray)
+
+                        // Open System Android Settings Button
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (isDarkTheme) Color(0xFF383838) else Color(0xFFEFEFEF))
+                                .clickable { launchAndroidSettings() }
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Settings,
+                                    contentDescription = "Ajustes Android",
+                                    tint = AccentCyan,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Ajustes del Sistema Android",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = textColor
+                                )
+                            }
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                                contentDescription = "Abrir",
+                                tint = Color.Gray,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
 
                         // Volume Control Slider
                         Column {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
-                                    imageVector = Icons.Default.VolumeUp,
+                                    imageVector = Icons.AutoMirrored.Filled.VolumeUp,
                                     contentDescription = "Volumen",
                                     tint = AccentCyan,
                                     modifier = Modifier.size(20.dp)
@@ -243,7 +291,6 @@ fun QuickSettingsDrawer(
                         }
                     }
 
-                    // Bottom info
                     Text(
                         text = "Horizon Launcher v1.0 • Gamer Edition",
                         fontSize = 10.sp,
