@@ -9,6 +9,7 @@ data class AppModel(
     val label: String,
     val icon: Drawable?,
     val isGame: Boolean = false,
+    val isEmulator: Boolean = false,
     val isFavorite: Boolean = false,
     val customBitmap: Bitmap? = null,
     val launchIntent: Intent? = null

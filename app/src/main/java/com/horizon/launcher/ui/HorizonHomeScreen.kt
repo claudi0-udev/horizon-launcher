@@ -53,6 +53,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.horizon.launcher.admin.LauncherAdminReceiver
 import com.horizon.launcher.data.FavoritesRepository
+import com.horizon.launcher.data.MemoryBoosterRepository
 import com.horizon.launcher.model.AppModel
 import com.horizon.launcher.model.UserProfile
 import com.horizon.launcher.sound.SoundEffectManager
@@ -60,14 +61,17 @@ import com.horizon.launcher.ui.components.ActiveAppsDrawer
 import com.horizon.launcher.ui.components.AllAppsDrawer
 import com.horizon.launcher.ui.components.AppCard
 import com.horizon.launcher.ui.components.BottomActionBar
+import com.horizon.launcher.ui.components.GameBootSplashScreen
 import com.horizon.launcher.ui.components.QuickSettingsDrawer
 import com.horizon.launcher.ui.components.TopStatusBar
 import com.horizon.launcher.ui.theme.AccentCyan
 import com.horizon.launcher.ui.theme.DarkBg
 import com.horizon.launcher.ui.theme.LightBg
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 enum class FilterCategory {
-    ALL, GAMES, APPS
+    ALL, EMULATORS, GAMES, APPS
 }
 
 enum class FocusedSection {
@@ -90,6 +94,8 @@ fun HorizonHomeScreen(
 ) {
     val context = LocalContext.current
     val view = LocalView.current
+    val coroutineScope = rememberCoroutineScope()
+    val memoryBooster = remember { MemoryBoosterRepository(context) }
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
@@ -115,12 +121,14 @@ fun HorizonHomeScreen(
     var isAllAppsDrawerOpen by remember { mutableStateOf(false) }
     var isActiveAppsDrawerOpen by remember { mutableStateOf(false) }
     var isQuickSettingsOpen by remember { mutableStateOf(false) }
+    var bootingApp by remember { mutableStateOf<AppModel?>(null) }
 
     val filteredApps = remember(appsList, selectedCategory, searchQuery) {
         appsList.filter { app ->
             val matchesCategory = when (selectedCategory) {
                 FilterCategory.ALL -> true
-                FilterCategory.GAMES -> app.isGame
+                FilterCategory.EMULATORS -> app.isEmulator
+                FilterCategory.GAMES -> app.isGame && !app.isEmulator
                 FilterCategory.APPS -> !app.isGame
             }
             val matchesSearch = searchQuery.isBlank() || app.label.contains(searchQuery, ignoreCase = true)
@@ -146,6 +154,16 @@ fun HorizonHomeScreen(
     val bottomBarFocusRequesters = remember { List(8) { FocusRequester() } }
 
     val backgroundColor = if (isDarkTheme) DarkBg else LightBg
+
+    fun triggerAnimatedLaunch(targetApp: AppModel) {
+        soundManager.playLaunchSound()
+        bootingApp = targetApp
+        coroutineScope.launch {
+            delay(480L)
+            onLaunchApp(targetApp)
+            bootingApp = null
+        }
+    }
 
     fun launchBrowser() {
         soundManager.playSelectSound()
@@ -253,6 +271,13 @@ fun HorizonHomeScreen(
                 val nativeKeyCode = keyEvent.nativeKeyEvent.keyCode
 
                 when {
+                    // Gamepad Hotkeys: L1+R1 / LB+RB -> RAM Booster
+                    (nativeKeyCode == KeyEvent.KEYCODE_BUTTON_L1 || nativeKeyCode == KeyEvent.KEYCODE_BUTTON_L2) &&
+                    (nativeKeyCode == KeyEvent.KEYCODE_BUTTON_R1 || nativeKeyCode == KeyEvent.KEYCODE_BUTTON_R2) -> {
+                        val freedMB = memoryBooster.boostRAM()
+                        Toast.makeText(context, "Game Booster: $freedMB MB de RAM liberados 🚀", Toast.LENGTH_SHORT).show()
+                        true
+                    }
                     nativeKeyCode == KeyEvent.KEYCODE_MENU || nativeKeyCode == KeyEvent.KEYCODE_BUTTON_SELECT -> {
                         soundManager.playSelectSound()
                         isQuickSettingsOpen = true
@@ -332,8 +357,7 @@ fun HorizonHomeScreen(
                         if (focusedSection == FocusedSection.CAROUSEL && filteredApps.isNotEmpty()) {
                             val targetApp = filteredApps.getOrNull(selectedAppIndex)
                             if (targetApp != null) {
-                                soundManager.playLaunchSound()
-                                onLaunchApp(targetApp)
+                                triggerAnimatedLaunch(targetApp)
                                 true
                             } else false
                         } else false
@@ -341,7 +365,8 @@ fun HorizonHomeScreen(
                     nativeKeyCode == KeyEvent.KEYCODE_BUTTON_Y -> {
                         soundManager.playSelectSound()
                         selectedCategory = when (selectedCategory) {
-                            FilterCategory.ALL -> FilterCategory.GAMES
+                            FilterCategory.ALL -> FilterCategory.EMULATORS
+                            FilterCategory.EMULATORS -> FilterCategory.GAMES
                             FilterCategory.GAMES -> FilterCategory.APPS
                             FilterCategory.APPS -> FilterCategory.ALL
                         }
@@ -490,8 +515,7 @@ fun HorizonHomeScreen(
                                         focusedSection = FocusedSection.CAROUSEL
                                     },
                                     onLaunch = {
-                                        soundManager.playLaunchSound()
-                                        onLaunchApp(app)
+                                        triggerAnimatedLaunch(app)
                                     },
                                     onToggleFavorite = {
                                         soundManager.playSelectSound()
@@ -519,8 +543,7 @@ fun HorizonHomeScreen(
                                         focusedSection = FocusedSection.CAROUSEL
                                     },
                                     onLaunch = {
-                                        soundManager.playLaunchSound()
-                                        onLaunchApp(app)
+                                        triggerAnimatedLaunch(app)
                                     },
                                     onToggleFavorite = {
                                         soundManager.playSelectSound()
@@ -563,8 +586,7 @@ fun HorizonHomeScreen(
             isDarkTheme = isDarkTheme,
             onDismiss = { isAllAppsDrawerOpen = false },
             onLaunchApp = { app ->
-                soundManager.playLaunchSound()
-                onLaunchApp(app)
+                triggerAnimatedLaunch(app)
                 isAllAppsDrawerOpen = false
             }
         )
@@ -576,8 +598,7 @@ fun HorizonHomeScreen(
             isDarkTheme = isDarkTheme,
             onDismiss = { isActiveAppsDrawerOpen = false },
             onLaunchApp = { app ->
-                soundManager.playLaunchSound()
-                onLaunchApp(app)
+                triggerAnimatedLaunch(app)
                 isActiveAppsDrawerOpen = false
             }
         )
@@ -589,6 +610,12 @@ fun HorizonHomeScreen(
             soundManager = soundManager,
             onToggleTheme = onToggleTheme,
             onDismiss = { isQuickSettingsOpen = false }
+        )
+
+        // Game Boot Console Transition Overlay
+        GameBootSplashScreen(
+            app = bootingApp,
+            isDarkTheme = isDarkTheme
         )
     }
 }
@@ -682,7 +709,8 @@ fun CategoryTabs(
             val isSelected = selectedCategory == cat
             val catLabel = when (cat) {
                 FilterCategory.ALL -> "Más Usadas (${appsList.size})"
-                FilterCategory.GAMES -> "Juegos (${appsList.count { it.isGame }})"
+                FilterCategory.EMULATORS -> "Emuladores (${appsList.count { it.isEmulator }})"
+                FilterCategory.GAMES -> "Juegos (${appsList.count { it.isGame && !it.isEmulator }})"
                 FilterCategory.APPS -> "Apps (${appsList.count { !it.isGame }})"
             }
 

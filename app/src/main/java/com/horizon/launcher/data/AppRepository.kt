@@ -18,6 +18,26 @@ class AppRepository(private val context: Context) {
     private val favoritesRepo = FavoritesRepository(context)
     private val artworkRepo = CustomArtworkRepository(context)
 
+    private val knownEmulatorPackages = setOf(
+        "org.ppsspp.ppsspp", "org.ppsspp.ppssppgold",
+        "org.retroarch", "org.retroarch.aarch64", "org.retroarch.ra32",
+        "xyz.aethersx2.android", "xyz.nethersx2.android",
+        "org.dolphinemu.dolphinemu",
+        "org.citra.citra_emu", "org.citra.citra_canary", "org.lemonade.lemonade_emu",
+        "org.yuzu.yuzu_emu", "org.suyu.suyu_emu", "org.sudachi.sudachi_emu", "org.uzuy.uzuy_emu",
+        "com.github.stenzek.duckstation",
+        "org.vita3k.emulator",
+        "emu.skyline", "emu.ryujinx",
+        "com.dsemu.drastic", "org.melonds.melonds",
+        "com.ex.SNES9xPlus", "com.ex.MD", "com.ex.GBC", "com.ex.GBA", "com.ex.NEO",
+        "com.fastem.gba", "com.fastem.gbc",
+        "org.mupen64plusae.v3.fsi",
+        "org.scummvm.scummvm",
+        "io.retronet.redream",
+        "com.winlator", "com.mobox", "com.horizon.emu",
+        "com.epsxe.ePSXe", "com.damonplay.damonps2.pro.ppsspp"
+    )
+
     fun recordAppLaunch(packageName: String) {
         val currentCount = prefs.getInt(packageName, 0)
         prefs.edit().putInt(packageName, currentCount + 1).apply()
@@ -76,6 +96,16 @@ class AppRepository(private val context: Context) {
                 (appInfo.flags and ApplicationInfo.FLAG_IS_GAME) != 0
             }
 
+            val isEmu = knownEmulatorPackages.contains(packageName) ||
+                    label.contains("emulator", ignoreCase = true) ||
+                    label.contains("emulador", ignoreCase = true) ||
+                    label.contains("retroarch", ignoreCase = true) ||
+                    label.contains("ppsspp", ignoreCase = true) ||
+                    label.contains("dolphin", ignoreCase = true) ||
+                    label.contains("citra", ignoreCase = true) ||
+                    label.contains("yuzu", ignoreCase = true) ||
+                    label.contains("aethersx2", ignoreCase = true)
+
             val isFav = favoritesRepo.isFavorite(packageName)
             val customBmp = artworkRepo.getCustomArtworkBitmap(packageName)
 
@@ -84,7 +114,8 @@ class AppRepository(private val context: Context) {
                     packageName = packageName,
                     label = label,
                     icon = icon,
-                    isGame = isGame,
+                    isGame = isGame || isEmu,
+                    isEmulator = isEmu,
                     isFavorite = isFav,
                     customBitmap = customBmp,
                     launchIntent = launchIntent
