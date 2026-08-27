@@ -1,5 +1,6 @@
 package com.horizon.launcher.ui
 
+import android.app.Activity
 import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Context
@@ -42,10 +43,14 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.horizon.launcher.admin.LauncherAdminReceiver
 import com.horizon.launcher.data.FavoritesRepository
 import com.horizon.launcher.model.AppModel
@@ -84,8 +89,24 @@ fun HorizonHomeScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val view = LocalView.current
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+    // Immersive Mode controller: Hide System Navigation Bar in Landscape Mode
+    DisposableEffect(isLandscape) {
+        val window = (context as? Activity)?.window
+        if (window != null) {
+            val insetsController = WindowCompat.getInsetsController(window, view)
+            if (isLandscape) {
+                insetsController.hide(WindowInsetsCompat.Type.navigationBars())
+                insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            } else {
+                insetsController.show(WindowInsetsCompat.Type.navigationBars())
+            }
+        }
+        onDispose {}
+    }
 
     var selectedCategory by remember { mutableStateOf(FilterCategory.ALL) }
     var searchQuery by remember { mutableStateOf("") }
