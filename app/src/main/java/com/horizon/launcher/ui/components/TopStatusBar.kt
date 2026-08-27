@@ -36,6 +36,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun TopStatusBar(
     userProfile: UserProfile,
+    batteryLevel: Int,
     isDarkTheme: Boolean,
     onToggleTheme: () -> Unit,
     focusRequester: FocusRequester = remember { FocusRequester() },
@@ -58,11 +59,11 @@ fun TopStatusBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 16.dp),
+            .padding(horizontal = 24.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Profile Avatar & Account Name
+        // Profile Avatar & Google Account Name
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -113,15 +114,24 @@ fun TopStatusBar(
                 }
             }
 
-            Text(
-                text = userProfile.name,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = textColor
-            )
+            Column {
+                Text(
+                    text = userProfile.name,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = textColor
+                )
+                if (!userProfile.email.isNullOrBlank()) {
+                    Text(
+                        text = userProfile.email,
+                        fontSize = 11.sp,
+                        color = if (isDarkTheme) Color.LightGray else Color.Gray
+                    )
+                }
+            }
         }
 
-        // Status indicators
+        // Status indicators: Wi-Fi, Real-time Battery, Digital Clock
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -133,6 +143,7 @@ fun TopStatusBar(
                 modifier = Modifier.size(20.dp)
             )
 
+            // Real Battery Level Indicator
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -144,15 +155,21 @@ fun TopStatusBar(
                         .border(1.5.dp, textColor)
                         .padding(1.5.dp)
                 ) {
+                    val fillRatio = (batteryLevel.coerceIn(0, 100) / 100f)
+                    val batteryColor = when {
+                        batteryLevel <= 15 -> Color.Red
+                        batteryLevel <= 30 -> Color(0xFFFF9800)
+                        else -> textColor
+                    }
                     Box(
                         modifier = Modifier
                             .fillMaxHeight()
-                            .fillMaxWidth(0.85f)
-                            .background(textColor)
+                            .fillMaxWidth(fillRatio)
+                            .background(batteryColor)
                     )
                 }
                 Text(
-                    text = "85%",
+                    text = "$batteryLevel%",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
                     color = textColor

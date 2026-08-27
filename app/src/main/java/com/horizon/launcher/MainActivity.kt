@@ -1,11 +1,16 @@
 package com.horizon.launcher
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
+import androidx.core.content.ContextCompat
 import com.horizon.launcher.data.AppRepository
+import com.horizon.launcher.data.BatteryRepository
 import com.horizon.launcher.data.UserProfileRepository
 import com.horizon.launcher.model.AppModel
 import com.horizon.launcher.model.UserProfile
@@ -17,16 +22,29 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var appRepository: AppRepository
     private lateinit var userProfileRepository: UserProfileRepository
+    private lateinit var batteryRepository: BatteryRepository
+
+    private val requestPermissionsLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        // Reload user profile once permissions are granted or denied
+        loadProfile()
+    }
+
+    private var profileState = mutableStateOf(UserProfile())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         appRepository = AppRepository(this)
         userProfileRepository = UserProfileRepository(this)
+        batteryRepository = BatteryRepository(this)
+
+        checkAndRequestPermissions()
 
         setContent {
             var isDarkTheme by remember { mutableStateOf(true) }
             var appsList by remember { mutableStateOf<List<AppModel>>(emptyList()) }
-            var userProfile by remember { mutableStateOf(UserProfile()) }
+            var batteryLevel by remember { mutableIntStateOf(100) }
             var isLoading by remember { mutableStateOf(true) }
 
             val scope = rememberCoroutineScope()
@@ -34,16 +52,23 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(Unit) {
                 scope.launch {
                     isLoading = true
-                    userProfile = userProfileRepository.getUserProfile()
                     appsList = appRepository.getInstalledApps()
+                    loadProfile()
                     isLoading = false
+                }
+
+                scope.launch {
+                    batteryRepository.getBatteryLevelFlow().collect { level ->
+                        batteryLevel = level
+                    }
                 }
             }
 
             HorizonLauncherTheme(darkTheme = isDarkTheme) {
                 HorizonHomeScreen(
                     appsList = appsList,
-                    userProfile = userProfile,
+                    userProfile = profileState.value,
+                    batteryLevel = batteryLevel,
                     isLoading = isLoading,
                     isDarkTheme = isDarkTheme,
                     onToggleTheme = { isDarkTheme = !isDarkTheme },
@@ -68,6 +93,28 @@ class MainActivity : ComponentActivity() {
                     }
                 )
             }
+        }
+    }
+
+    private fun checkAndRequestPermissions() {
+        val permissionsToRequest = mutableListOf<String>()
+
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.GET_ACCOUNTS) != PackageManager.PERMISSION_GRANTED) {
+            permissionsToRequest.add(Manifest.permission.GET_ACCOUNTS)
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+            permissionsToRequest.add(Manifest.permission.READ_CONTACTS)
+        }
+
+        if (permissionsToRequest.isNotEmpty()) {
+            requestPermissionsLauncher.launch(permissionsToRequest.toTypedArray())
+        }
+    }
+
+    private fun loadProfile() {
+        kotlinx.coroutines.GlobalScope.launch {
+            val prof = userProfileRepository.getUserProfile()
+            profileState.value = prof
         }
     }
 }

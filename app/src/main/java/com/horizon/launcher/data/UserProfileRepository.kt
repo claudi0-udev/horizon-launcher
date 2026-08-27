@@ -1,8 +1,11 @@
 package com.horizon.launcher.data
 
+import android.accounts.Account
 import android.accounts.AccountManager
+import android.content.ContentResolver
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Build
@@ -11,6 +14,7 @@ import android.provider.MediaStore
 import com.horizon.launcher.model.UserProfile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.InputStream
 
 class UserProfileRepository(private val context: Context) {
 
@@ -19,26 +23,27 @@ class UserProfileRepository(private val context: Context) {
         var accountEmail: String? = null
         var photoBitmap: Bitmap? = null
 
-        // 1. Fetch Google Account from AccountManager
+        // 1. Fetch Google Account via AccountManager
         try {
             val am = AccountManager.get(context)
-            val googleAccounts = am.getAccountsByType("com.google")
-            if (googleAccounts.isNotEmpty()) {
-                accountEmail = googleAccounts[0].name
-                accountName = if (accountEmail.contains("@")) {
+            val accounts: Array<Account> = am.getAccountsByType("com.google")
+            if (accounts.isNotEmpty()) {
+                val primaryAccount = accounts[0]
+                accountEmail = primaryAccount.name
+                if (accountEmail.contains("@")) {
                     val rawName = accountEmail.substringBefore("@")
-                    rawName.replace(".", " ")
-                        .split(" ")
-                        .joinToString(" ") { it.replaceFirstChar { char -> char.uppercase() } }
+                    accountName = rawName.split(".", "_", "-")
+                        .joinToString(" ") { word -> word.replaceFirstChar { char -> char.uppercase() } }
                 } else {
-                    accountEmail
+                    accountName = primaryAccount.name
                 }
             }
         } catch (_: Exception) {}
 
-        // 2. Fetch Display Name & Photo from ContactsContract Profile
+        // 2. Query ContactsContract Profile for Display Name & Photo
         try {
-            val cursor = context.contentResolver.query(
+            val cr: ContentResolver = context.contentResolver
+            val cursor = cr.query(
                 ContactsContract.Profile.CONTENT_URI,
                 arrayOf(
                     ContactsContract.Profile.DISPLAY_NAME,
@@ -48,30 +53,54 @@ class UserProfileRepository(private val context: Context) {
                 null, null, null
             )
 
-            cursor?.use {
-                if (it.moveToFirst()) {
-                    val displayNameIdx = it.getColumnIndex(ContactsContract.Profile.DISPLAY_NAME)
-                    val photoUriIdx = it.getColumnIndex(ContactsContract.Profile.PHOTO_URI)
-                    val thumbUriIdx = it.getColumnIndex(ContactsContract.Profile.PHOTO_THUMBNAIL_URI)
+            cursor?.use { c ->
+                if (c.moveToFirst()) {
+                    val nameIdx = c.getColumnIndex(ContactsContract.Profile.DISPLAY_NAME)
+                    val photoIdx = c.getColumnIndex(ContactsContract.Profile.PHOTO_URI)
+                    val thumbIdx = c.getColumnIndex(ContactsContract.Profile.PHOTO_THUMBNAIL_URI)
 
-                    if (displayNameIdx != -1) {
-                        val nameStr = it.getString(displayNameIdx)
+                    if (nameIdx != -1) {
+                        val nameStr = c.getString(nameIdx)
                         if (!nameStr.isNullOrBlank()) {
                             accountName = nameStr
                         }
                     }
 
-                    val uriStr = if (photoUriIdx != -1) it.getString(photoUriIdx) else null
-                    val thumbStr = if (thumbUriIdx != -1) it.getString(thumbUriIdx) else null
+                    val uriStr = if (photoIdx != -1) c.getString(photoIdx) else null
+                    val thumbStr = if (thumbIdx != -1) c.getString(thumbIdx) else null
                     val finalUriStr = uriStr ?: thumbStr
 
                     if (!finalUriStr.isNullOrBlank()) {
-                        val imageUri = Uri.parse(finalUriStr)
-                        photoBitmap = loadBitmapFromUri(context, imageUri)
+                        photoBitmap = loadBitmapFromUri(context, Uri.parse(finalUriStr))
                     }
                 }
             }
         } catch (_: Exception) {}
+
+        // 3. Fallback: Search Contacts by Google Email if profile photo was null
+        if (photoBitmap == null && !accountEmail.isNullOrBlank()) {
+            try {
+                val cr = context.contentResolver
+                val emailCursor = cr.query(
+                    ContactsContract.CommonDataKinds.Email.CONTENT_URI,
+                    arrayOf(ContactsContract.CommonDataKinds.Email.PHOTO_URI),
+                    "${ContactsContract.CommonDataKinds.Email.ADDRESS} = ?",
+                    arrayOf(accountEmail),
+                    null
+                )
+                emailCursor?.use { c ->
+                    if (c.moveToFirst()) {
+                        val photoIdx = c.getColumnIndex(ContactsContract.CommonDataKinds.Email.PHOTO_URI)
+                        if (photoIdx != -1) {
+                            val uriStr = c.getString(photoIdx)
+                            if (!uriStr.isNullOrBlank()) {
+                                photoBitmap = loadBitmapFromUri(context, Uri.parse(uriStr))
+                            }
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+        }
 
         UserProfile(
             name = accountName,
@@ -86,8 +115,8 @@ class UserProfileRepository(private val context: Context) {
                 val source = ImageDecoder.createSource(context.contentResolver, uri)
                 ImageDecoder.decodeBitmap(source)
             } else {
-                @Suppress("DEPRECATION")
-                MediaStore.Images.Media.getBitmap(context.contentResolver, uri)
+                val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
+                BitmapFactory.decodeStream(inputStream)
             }
         } catch (_: Exception) {
             null

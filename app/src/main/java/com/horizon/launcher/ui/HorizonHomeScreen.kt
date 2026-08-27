@@ -1,6 +1,7 @@
 package com.horizon.launcher.ui
 
 import android.content.Intent
+import android.content.res.Configuration
 import android.net.Uri
 import android.provider.Settings
 import android.view.KeyEvent
@@ -13,6 +14,10 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -32,6 +37,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.*
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -58,6 +64,7 @@ enum class FocusedSection {
 fun HorizonHomeScreen(
     appsList: List<AppModel>,
     userProfile: UserProfile,
+    batteryLevel: Int,
     isLoading: Boolean,
     isDarkTheme: Boolean,
     onToggleTheme: () -> Unit,
@@ -65,6 +72,9 @@ fun HorizonHomeScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
     var selectedCategory by remember { mutableStateOf(FilterCategory.ALL) }
     var searchQuery by remember { mutableStateOf("") }
     var selectedAppIndex by remember { mutableIntStateOf(0) }
@@ -83,10 +93,15 @@ fun HorizonHomeScreen(
     }
 
     val lazyListState = rememberLazyListState()
+    val lazyGridState = rememberLazyGridState()
 
     LaunchedEffect(selectedAppIndex, filteredApps.size) {
         if (filteredApps.isNotEmpty() && selectedAppIndex in filteredApps.indices) {
-            lazyListState.animateScrollToItem(selectedAppIndex)
+            if (isLandscape) {
+                lazyListState.animateScrollToItem(selectedAppIndex)
+            } else {
+                lazyGridState.animateScrollToItem(selectedAppIndex)
+            }
         }
     }
 
@@ -196,8 +211,12 @@ fun HorizonHomeScreen(
                                 true
                             }
                             FocusedSection.CAROUSEL -> {
-                                focusedSection = FocusedSection.BOTTOM_BAR
-                                try { bottomBarFocusRequesters.firstOrNull()?.requestFocus() } catch (_: Exception) {}
+                                if (!isLandscape && selectedAppIndex + 3 < filteredApps.size) {
+                                    selectedAppIndex += 3
+                                } else {
+                                    focusedSection = FocusedSection.BOTTOM_BAR
+                                    try { bottomBarFocusRequesters.firstOrNull()?.requestFocus() } catch (_: Exception) {}
+                                }
                                 true
                             }
                             else -> false
@@ -210,8 +229,12 @@ fun HorizonHomeScreen(
                                 true
                             }
                             FocusedSection.CAROUSEL -> {
-                                focusedSection = FocusedSection.SEARCH_BAR
-                                try { searchBarFocusRequester.requestFocus() } catch (_: Exception) {}
+                                if (!isLandscape && selectedAppIndex - 3 >= 0) {
+                                    selectedAppIndex -= 3
+                                } else {
+                                    focusedSection = FocusedSection.SEARCH_BAR
+                                    try { searchBarFocusRequester.requestFocus() } catch (_: Exception) {}
+                                }
                                 true
                             }
                             FocusedSection.SEARCH_BAR -> {
@@ -254,139 +277,89 @@ fun HorizonHomeScreen(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // 1. Top Status Bar with Google UserProfile
+            // 1. Top Status Bar
             TopStatusBar(
                 userProfile = userProfile,
+                batteryLevel = batteryLevel,
                 isDarkTheme = isDarkTheme,
                 onToggleTheme = onToggleTheme,
                 focusRequester = topBarFocusRequester
             )
 
-            // 2. Search Bar + Category Tabs + Carousel
+            // 2. Search & Apps Content Section
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.Center
             ) {
-                // Header Controls Row: Search Input & Category Filters
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 32.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Search Bar Component
-                    val searchInteractionSource = remember { MutableInteractionSource() }
-                    val isSearchFocused by searchInteractionSource.collectIsFocusedAsState()
-
-                    Box(
-                        modifier = Modifier
-                            .width(280.dp)
-                            .height(40.dp)
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(if (isDarkTheme) Color(0xFF3B3B3B) else Color.White)
-                            .border(
-                                width = if (isSearchFocused || focusedSection == FocusedSection.SEARCH_BAR) 2.5.dp else 1.dp,
-                                color = if (isSearchFocused || focusedSection == FocusedSection.SEARCH_BAR) AccentCyan else if (isDarkTheme) Color(0xFF555555) else Color(0xFFD0D0D0),
-                                shape = RoundedCornerShape(20.dp)
-                            )
-                            .focusRequester(searchBarFocusRequester)
-                            .focusable(interactionSource = searchInteractionSource)
-                            .padding(horizontal = 14.dp),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = "Search Icon",
-                                tint = if (isDarkTheme) Color.LightGray else Color.Gray,
-                                modifier = Modifier.size(18.dp)
-                            )
-
-                            Box(modifier = Modifier.weight(1f)) {
-                                if (searchQuery.isEmpty()) {
-                                    Text(
-                                        text = "Buscar app o juego...",
-                                        color = if (isDarkTheme) Color.Gray else Color.DarkGray,
-                                        fontSize = 13.sp
-                                    )
-                                }
-                                BasicTextField(
-                                    value = searchQuery,
-                                    onValueChange = {
-                                        searchQuery = it
-                                        selectedAppIndex = 0
-                                    },
-                                    singleLine = true,
-                                    textStyle = TextStyle(
-                                        color = if (isDarkTheme) Color.White else Color.Black,
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Medium
-                                    ),
-                                    cursorBrush = SolidColor(AccentCyan),
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            }
-
-                            if (searchQuery.isNotEmpty()) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "Clear Search",
-                                    tint = if (isDarkTheme) Color.LightGray else Color.Gray,
-                                    modifier = Modifier
-                                        .size(18.dp)
-                                        .clickable {
-                                            searchQuery = ""
-                                            selectedAppIndex = 0
-                                        }
-                                )
-                            }
-                        }
-                    }
-
-                    // Category Tabs
+                // Search Bar + Category Controls Row
+                if (isLandscape) {
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 32.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        FilterCategory.values().forEach { cat ->
-                            val isSelected = selectedCategory == cat
-                            val catLabel = when (cat) {
-                                FilterCategory.ALL -> "Todas (${appsList.size})"
-                                FilterCategory.GAMES -> "Juegos (${appsList.count { it.isGame }})"
-                                FilterCategory.APPS -> "Apps (${appsList.count { !it.isGame }})"
-                            }
+                        SearchBarField(
+                            searchQuery = searchQuery,
+                            onQueryChange = {
+                                searchQuery = it
+                                selectedAppIndex = 0
+                            },
+                            isDarkTheme = isDarkTheme,
+                            isFocused = focusedSection == FocusedSection.SEARCH_BAR,
+                            focusRequester = searchBarFocusRequester,
+                            modifier = Modifier.width(280.dp)
+                        )
 
-                            Box(
-                                modifier = Modifier
-                                    .background(
-                                        if (isSelected) AccentCyan else Color.Transparent,
-                                        shape = RoundedCornerShape(16.dp)
-                                    )
-                                    .clickable {
-                                        selectedCategory = cat
-                                        selectedAppIndex = 0
-                                        focusedSection = FocusedSection.CAROUSEL
-                                    }
-                                    .padding(horizontal = 12.dp, vertical = 6.dp)
-                            ) {
-                                Text(
-                                    text = catLabel,
-                                    fontSize = 12.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isSelected) Color.White else if (isDarkTheme) Color.LightGray else Color.DarkGray
-                                )
+                        CategoryTabs(
+                            selectedCategory = selectedCategory,
+                            appsList = appsList,
+                            isDarkTheme = isDarkTheme,
+                            onSelectCategory = { cat ->
+                                selectedCategory = cat
+                                selectedAppIndex = 0
+                                focusedSection = FocusedSection.CAROUSEL
                             }
-                        }
+                        )
+                    }
+                } else {
+                    // Portrait orientation: Stack Search Bar and Category Tabs cleanly
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 4.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        SearchBarField(
+                            searchQuery = searchQuery,
+                            onQueryChange = {
+                                searchQuery = it
+                                selectedAppIndex = 0
+                            },
+                            isDarkTheme = isDarkTheme,
+                            isFocused = focusedSection == FocusedSection.SEARCH_BAR,
+                            focusRequester = searchBarFocusRequester,
+                            modifier = Modifier.fillMaxWidth(0.95f)
+                        )
+
+                        CategoryTabs(
+                            selectedCategory = selectedCategory,
+                            appsList = appsList,
+                            isDarkTheme = isDarkTheme,
+                            onSelectCategory = { cat ->
+                                selectedCategory = cat
+                                selectedAppIndex = 0
+                                focusedSection = FocusedSection.CAROUSEL
+                            }
+                        )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-                // Carousel Grid
+                // App Grid / Carousel Content
                 if (isLoading) {
                     Box(
                         modifier = Modifier
@@ -410,26 +383,52 @@ fun HorizonHomeScreen(
                         )
                     }
                 } else {
-                    LazyRow(
-                        state = lazyListState,
-                        contentPadding = PaddingValues(horizontal = 32.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(220.dp)
-                    ) {
-                        itemsIndexed(filteredApps) { index, app ->
-                            AppCard(
-                                app = app,
-                                isSelected = (index == selectedAppIndex && focusedSection == FocusedSection.CAROUSEL),
-                                onSelect = {
-                                    selectedAppIndex = index
-                                    focusedSection = FocusedSection.CAROUSEL
-                                },
-                                onLaunch = { onLaunchApp(app) },
-                                isDarkTheme = isDarkTheme
-                            )
+                    if (isLandscape) {
+                        // Horizontal Carousel for Landscape Mode
+                        LazyRow(
+                            state = lazyListState,
+                            contentPadding = PaddingValues(horizontal = 32.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(220.dp)
+                        ) {
+                            itemsIndexed(filteredApps) { index, app ->
+                                AppCard(
+                                    app = app,
+                                    isSelected = (index == selectedAppIndex && focusedSection == FocusedSection.CAROUSEL),
+                                    onSelect = {
+                                        selectedAppIndex = index
+                                        focusedSection = FocusedSection.CAROUSEL
+                                    },
+                                    onLaunch = { onLaunchApp(app) },
+                                    isDarkTheme = isDarkTheme
+                                )
+                            }
+                        }
+                    } else {
+                        // Responsive 3-Column Vertical Grid for Portrait Mode
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(3),
+                            state = lazyGridState,
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            itemsIndexed(filteredApps) { index, app ->
+                                AppCard(
+                                    app = app,
+                                    isSelected = (index == selectedAppIndex && focusedSection == FocusedSection.CAROUSEL),
+                                    onSelect = {
+                                        selectedAppIndex = index
+                                        focusedSection = FocusedSection.CAROUSEL
+                                    },
+                                    onLaunch = { onLaunchApp(app) },
+                                    isDarkTheme = isDarkTheme
+                                )
+                            }
                         }
                     }
                 }
@@ -451,6 +450,119 @@ fun HorizonHomeScreen(
                 },
                 focusRequesters = bottomBarFocusRequesters
             )
+        }
+    }
+}
+
+@Composable
+fun SearchBarField(
+    searchQuery: String,
+    onQueryChange: (String) -> Unit,
+    isDarkTheme: Boolean,
+    isFocused: Boolean,
+    focusRequester: FocusRequester,
+    modifier: Modifier = Modifier
+) {
+    val searchInteractionSource = remember { MutableInteractionSource() }
+    val isSearchFocused by searchInteractionSource.collectIsFocusedAsState()
+
+    Box(
+        modifier = modifier
+            .height(40.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(if (isDarkTheme) Color(0xFF3B3B3B) else Color.White)
+            .border(
+                width = if (isSearchFocused || isFocused) 2.5.dp else 1.dp,
+                color = if (isSearchFocused || isFocused) AccentCyan else if (isDarkTheme) Color(0xFF555555) else Color(0xFFD0D0D0),
+                shape = RoundedCornerShape(20.dp)
+            )
+            .focusRequester(focusRequester)
+            .focusable(interactionSource = searchInteractionSource)
+            .padding(horizontal = 14.dp),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = "Search Icon",
+                tint = if (isDarkTheme) Color.LightGray else Color.Gray,
+                modifier = Modifier.size(18.dp)
+            )
+
+            Box(modifier = Modifier.weight(1f)) {
+                if (searchQuery.isEmpty()) {
+                    Text(
+                        text = "Buscar app o juego...",
+                        color = if (isDarkTheme) Color.Gray else Color.DarkGray,
+                        fontSize = 13.sp
+                    )
+                }
+                BasicTextField(
+                    value = searchQuery,
+                    onValueChange = onQueryChange,
+                    singleLine = true,
+                    textStyle = TextStyle(
+                        color = if (isDarkTheme) Color.White else Color.Black,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
+                    ),
+                    cursorBrush = SolidColor(AccentCyan),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            if (searchQuery.isNotEmpty()) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Clear Search",
+                    tint = if (isDarkTheme) Color.LightGray else Color.Gray,
+                    modifier = Modifier
+                        .size(18.dp)
+                        .clickable { onQueryChange("") }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun CategoryTabs(
+    selectedCategory: FilterCategory,
+    appsList: List<AppModel>,
+    isDarkTheme: Boolean,
+    onSelectCategory: (FilterCategory) -> Unit
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        FilterCategory.values().forEach { cat ->
+            val isSelected = selectedCategory == cat
+            val catLabel = when (cat) {
+                FilterCategory.ALL -> "Todas (${appsList.size})"
+                FilterCategory.GAMES -> "Juegos (${appsList.count { it.isGame }})"
+                FilterCategory.APPS -> "Apps (${appsList.count { !it.isGame }})"
+            }
+
+            Box(
+                modifier = Modifier
+                    .background(
+                        if (isSelected) AccentCyan else Color.Transparent,
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                    .clickable { onSelectCategory(cat) }
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    text = catLabel,
+                    fontSize = 12.sp,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                    color = if (isSelected) Color.White else if (isDarkTheme) Color.LightGray else Color.DarkGray
+                )
+            }
         }
     }
 }
