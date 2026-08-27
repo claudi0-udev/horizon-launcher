@@ -1,5 +1,6 @@
 package com.horizon.launcher.ui.components
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,9 +21,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.horizon.launcher.model.UserProfile
 import com.horizon.launcher.ui.theme.AccentCyan
 import com.horizon.launcher.ui.theme.AccentRed
 import java.text.SimpleDateFormat
@@ -31,6 +35,7 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun TopStatusBar(
+    userProfile: UserProfile,
     isDarkTheme: Boolean,
     onToggleTheme: () -> Unit,
     focusRequester: FocusRequester = remember { FocusRequester() },
@@ -57,7 +62,7 @@ fun TopStatusBar(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Profile Avatar & Theme Switcher
+        // Profile Avatar & Account Name
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -69,7 +74,7 @@ fun TopStatusBar(
         ) {
             Box(
                 modifier = Modifier
-                    .size(42.dp)
+                    .size(46.dp)
                     .clip(CircleShape)
                     .background(AccentRed)
                     .border(
@@ -79,15 +84,37 @@ fun TopStatusBar(
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = "User Profile",
-                    tint = Color.White,
-                    modifier = Modifier.size(26.dp)
-                )
+                if (userProfile.photoBitmap != null) {
+                    Image(
+                        bitmap = userProfile.photoBitmap.asImageBitmap(),
+                        contentDescription = "User Avatar",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape)
+                    )
+                } else {
+                    val initial = userProfile.name.take(1).uppercase()
+                    if (initial.isNotEmpty() && initial != "U") {
+                        Text(
+                            text = initial,
+                            color = Color.White,
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "User Profile",
+                            tint = Color.White,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+                }
             }
+
             Text(
-                text = "Player 1",
+                text = userProfile.name,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 color = textColor

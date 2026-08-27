@@ -1,31 +1,44 @@
 package com.horizon.launcher.ui
 
-import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
 import android.view.KeyEvent
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.horizon.launcher.model.AppModel
+import com.horizon.launcher.model.UserProfile
 import com.horizon.launcher.ui.components.AppCard
 import com.horizon.launcher.ui.components.BottomActionBar
 import com.horizon.launcher.ui.components.TopStatusBar
@@ -38,12 +51,13 @@ enum class FilterCategory {
 }
 
 enum class FocusedSection {
-    TOP_BAR, CAROUSEL, BOTTOM_BAR
+    TOP_BAR, SEARCH_BAR, CAROUSEL, BOTTOM_BAR
 }
 
 @Composable
 fun HorizonHomeScreen(
     appsList: List<AppModel>,
+    userProfile: UserProfile,
     isLoading: Boolean,
     isDarkTheme: Boolean,
     onToggleTheme: () -> Unit,
@@ -52,14 +66,19 @@ fun HorizonHomeScreen(
 ) {
     val context = LocalContext.current
     var selectedCategory by remember { mutableStateOf(FilterCategory.ALL) }
+    var searchQuery by remember { mutableStateOf("") }
     var selectedAppIndex by remember { mutableIntStateOf(0) }
     var focusedSection by remember { mutableStateOf(FocusedSection.CAROUSEL) }
 
-    val filteredApps = remember(appsList, selectedCategory) {
-        when (selectedCategory) {
-            FilterCategory.ALL -> appsList
-            FilterCategory.GAMES -> appsList.filter { it.isGame }
-            FilterCategory.APPS -> appsList.filter { !it.isGame }
+    val filteredApps = remember(appsList, selectedCategory, searchQuery) {
+        appsList.filter { app ->
+            val matchesCategory = when (selectedCategory) {
+                FilterCategory.ALL -> true
+                FilterCategory.GAMES -> app.isGame
+                FilterCategory.APPS -> !app.isGame
+            }
+            val matchesSearch = searchQuery.isBlank() || app.label.contains(searchQuery, ignoreCase = true)
+            matchesCategory && matchesSearch
         }
     }
 
@@ -72,11 +91,11 @@ fun HorizonHomeScreen(
     }
 
     val topBarFocusRequester = remember { FocusRequester() }
+    val searchBarFocusRequester = remember { FocusRequester() }
     val bottomBarFocusRequesters = remember { List(6) { FocusRequester() } }
 
     val backgroundColor = if (isDarkTheme) DarkBg else LightBg
 
-    // Helper functions for action intents
     fun launchBrowser() {
         try {
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com"))
@@ -168,14 +187,17 @@ fun HorizonHomeScreen(
                     nativeKeyCode == KeyEvent.KEYCODE_DPAD_DOWN -> {
                         when (focusedSection) {
                             FocusedSection.TOP_BAR -> {
+                                focusedSection = FocusedSection.SEARCH_BAR
+                                try { searchBarFocusRequester.requestFocus() } catch (_: Exception) {}
+                                true
+                            }
+                            FocusedSection.SEARCH_BAR -> {
                                 focusedSection = FocusedSection.CAROUSEL
                                 true
                             }
                             FocusedSection.CAROUSEL -> {
                                 focusedSection = FocusedSection.BOTTOM_BAR
-                                try {
-                                    bottomBarFocusRequesters.firstOrNull()?.requestFocus()
-                                } catch (_: Exception) {}
+                                try { bottomBarFocusRequesters.firstOrNull()?.requestFocus() } catch (_: Exception) {}
                                 true
                             }
                             else -> false
@@ -188,10 +210,13 @@ fun HorizonHomeScreen(
                                 true
                             }
                             FocusedSection.CAROUSEL -> {
+                                focusedSection = FocusedSection.SEARCH_BAR
+                                try { searchBarFocusRequester.requestFocus() } catch (_: Exception) {}
+                                true
+                            }
+                            FocusedSection.SEARCH_BAR -> {
                                 focusedSection = FocusedSection.TOP_BAR
-                                try {
-                                    topBarFocusRequester.requestFocus()
-                                } catch (_: Exception) {}
+                                try { topBarFocusRequester.requestFocus() } catch (_: Exception) {}
                                 true
                             }
                             else -> false
@@ -229,55 +254,139 @@ fun HorizonHomeScreen(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // 1. Top Status Bar
+            // 1. Top Status Bar with Google UserProfile
             TopStatusBar(
+                userProfile = userProfile,
                 isDarkTheme = isDarkTheme,
                 onToggleTheme = onToggleTheme,
                 focusRequester = topBarFocusRequester
             )
 
-            // 2. Category Tabs & Carousel
+            // 2. Search Bar + Category Tabs + Carousel
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.Center
             ) {
+                // Header Controls Row: Search Input & Category Filters
                 Row(
-                    modifier = Modifier.padding(horizontal = 32.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 32.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    FilterCategory.values().forEach { cat ->
-                        val isSelected = selectedCategory == cat
-                        val catLabel = when (cat) {
-                            FilterCategory.ALL -> "Todas (${appsList.size})"
-                            FilterCategory.GAMES -> "Juegos (${appsList.count { it.isGame }})"
-                            FilterCategory.APPS -> "Aplicaciones (${appsList.count { !it.isGame }})"
-                        }
+                    // Search Bar Component
+                    val searchInteractionSource = remember { MutableInteractionSource() }
+                    val isSearchFocused by searchInteractionSource.collectIsFocusedAsState()
 
-                        Box(
-                            modifier = Modifier
-                                .background(
-                                    if (isSelected) AccentCyan else Color.Transparent,
-                                    shape = RoundedCornerShape(16.dp)
-                                )
-                                .clickable {
-                                    selectedCategory = cat
-                                    selectedAppIndex = 0
-                                    focusedSection = FocusedSection.CAROUSEL
-                                }
-                                .padding(horizontal = 14.dp, vertical = 6.dp)
-                        ) {
-                            Text(
-                                text = catLabel,
-                                fontSize = 13.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSelected) Color.White else if (isDarkTheme) Color.LightGray else Color.DarkGray
+                    Box(
+                        modifier = Modifier
+                            .width(280.dp)
+                            .height(40.dp)
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(if (isDarkTheme) Color(0xFF3B3B3B) else Color.White)
+                            .border(
+                                width = if (isSearchFocused || focusedSection == FocusedSection.SEARCH_BAR) 2.5.dp else 1.dp,
+                                color = if (isSearchFocused || focusedSection == FocusedSection.SEARCH_BAR) AccentCyan else if (isDarkTheme) Color(0xFF555555) else Color(0xFFD0D0D0),
+                                shape = RoundedCornerShape(20.dp)
                             )
+                            .focusRequester(searchBarFocusRequester)
+                            .focusable(interactionSource = searchInteractionSource)
+                            .padding(horizontal = 14.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Search Icon",
+                                tint = if (isDarkTheme) Color.LightGray else Color.Gray,
+                                modifier = Modifier.size(18.dp)
+                            )
+
+                            Box(modifier = Modifier.weight(1f)) {
+                                if (searchQuery.isEmpty()) {
+                                    Text(
+                                        text = "Buscar app o juego...",
+                                        color = if (isDarkTheme) Color.Gray else Color.DarkGray,
+                                        fontSize = 13.sp
+                                    )
+                                }
+                                BasicTextField(
+                                    value = searchQuery,
+                                    onValueChange = {
+                                        searchQuery = it
+                                        selectedAppIndex = 0
+                                    },
+                                    singleLine = true,
+                                    textStyle = TextStyle(
+                                        color = if (isDarkTheme) Color.White else Color.Black,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium
+                                    ),
+                                    cursorBrush = SolidColor(AccentCyan),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+
+                            if (searchQuery.isNotEmpty()) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Clear Search",
+                                    tint = if (isDarkTheme) Color.LightGray else Color.Gray,
+                                    modifier = Modifier
+                                        .size(18.dp)
+                                        .clickable {
+                                            searchQuery = ""
+                                            selectedAppIndex = 0
+                                        }
+                                )
+                            }
+                        }
+                    }
+
+                    // Category Tabs
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        FilterCategory.values().forEach { cat ->
+                            val isSelected = selectedCategory == cat
+                            val catLabel = when (cat) {
+                                FilterCategory.ALL -> "Todas (${appsList.size})"
+                                FilterCategory.GAMES -> "Juegos (${appsList.count { it.isGame }})"
+                                FilterCategory.APPS -> "Apps (${appsList.count { !it.isGame }})"
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .background(
+                                        if (isSelected) AccentCyan else Color.Transparent,
+                                        shape = RoundedCornerShape(16.dp)
+                                    )
+                                    .clickable {
+                                        selectedCategory = cat
+                                        selectedAppIndex = 0
+                                        focusedSection = FocusedSection.CAROUSEL
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = catLabel,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (isSelected) Color.White else if (isDarkTheme) Color.LightGray else Color.DarkGray
+                                )
+                            }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
+                // Carousel Grid
                 if (isLoading) {
                     Box(
                         modifier = Modifier
@@ -295,9 +404,9 @@ fun HorizonHomeScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "No hay aplicaciones en esta categoría",
+                            text = if (searchQuery.isNotEmpty()) "No se encontraron apps con \"$searchQuery\"" else "No hay aplicaciones en esta categoría",
                             color = if (isDarkTheme) Color.Gray else Color.DarkGray,
-                            fontSize = 16.sp
+                            fontSize = 15.sp
                         )
                     }
                 } else {
@@ -336,6 +445,7 @@ fun HorizonHomeScreen(
                 onOpenPower = { launchPowerSettings() },
                 onOpenAllApps = {
                     selectedCategory = FilterCategory.ALL
+                    searchQuery = ""
                     selectedAppIndex = 0
                     focusedSection = FocusedSection.CAROUSEL
                 },

@@ -6,7 +6,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.*
 import com.horizon.launcher.data.AppRepository
+import com.horizon.launcher.data.UserProfileRepository
 import com.horizon.launcher.model.AppModel
+import com.horizon.launcher.model.UserProfile
 import com.horizon.launcher.ui.HorizonHomeScreen
 import com.horizon.launcher.ui.theme.HorizonLauncherTheme
 import kotlinx.coroutines.launch
@@ -14,14 +16,17 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
 
     private lateinit var appRepository: AppRepository
+    private lateinit var userProfileRepository: UserProfileRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         appRepository = AppRepository(this)
+        userProfileRepository = UserProfileRepository(this)
 
         setContent {
             var isDarkTheme by remember { mutableStateOf(true) }
             var appsList by remember { mutableStateOf<List<AppModel>>(emptyList()) }
+            var userProfile by remember { mutableStateOf(UserProfile()) }
             var isLoading by remember { mutableStateOf(true) }
 
             val scope = rememberCoroutineScope()
@@ -29,6 +34,7 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(Unit) {
                 scope.launch {
                     isLoading = true
+                    userProfile = userProfileRepository.getUserProfile()
                     appsList = appRepository.getInstalledApps()
                     isLoading = false
                 }
@@ -37,6 +43,7 @@ class MainActivity : ComponentActivity() {
             HorizonLauncherTheme(darkTheme = isDarkTheme) {
                 HorizonHomeScreen(
                     appsList = appsList,
+                    userProfile = userProfile,
                     isLoading = isLoading,
                     isDarkTheme = isDarkTheme,
                     onToggleTheme = { isDarkTheme = !isDarkTheme },
