@@ -1,5 +1,8 @@
 package com.horizon.launcher.ui
 
+import android.app.admin.DevicePolicyManager
+import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.net.Uri
@@ -43,6 +46,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.horizon.launcher.admin.LauncherAdminReceiver
 import com.horizon.launcher.model.AppModel
 import com.horizon.launcher.model.UserProfile
 import com.horizon.launcher.ui.components.AppCard
@@ -168,12 +172,24 @@ fun HorizonHomeScreen(
         }
     }
 
-    fun launchPowerSettings() {
+    fun launchPowerStandby() {
         try {
-            val intent = Intent(Settings.ACTION_DISPLAY_SETTINGS)
-            context.startActivity(intent)
+            val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+            val compName = ComponentName(context, LauncherAdminReceiver::class.java)
+            if (dpm.isAdminActive(compName)) {
+                dpm.lockNow()
+            } else {
+                val intent = Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).apply {
+                    putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, compName)
+                    putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, "Permite apagar la pantalla al presionar Modo de Espera.")
+                }
+                context.startActivity(intent)
+            }
         } catch (e: Exception) {
-            Toast.makeText(context, "Configuración de pantalla / energía", Toast.LENGTH_SHORT).show()
+            try {
+                val intent = Intent(Settings.ACTION_DISPLAY_SETTINGS)
+                context.startActivity(intent)
+            } catch (_: Exception) {}
         }
     }
 
@@ -439,7 +455,7 @@ fun HorizonHomeScreen(
                 onOpenGallery = { launchGallery() },
                 onOpenControllers = { launchControllersSettings() },
                 onOpenSettings = { launchSystemSettings() },
-                onOpenPower = { launchPowerSettings() },
+                onOpenPower = { launchPowerStandby() },
                 onOpenAllApps = {
                     selectedCategory = FilterCategory.ALL
                     searchQuery = ""
@@ -540,7 +556,7 @@ fun CategoryTabs(
         FilterCategory.values().forEach { cat ->
             val isSelected = selectedCategory == cat
             val catLabel = when (cat) {
-                FilterCategory.ALL -> "Todas (${appsList.size})"
+                FilterCategory.ALL -> "Más Usadas (${appsList.size})"
                 FilterCategory.GAMES -> "Juegos (${appsList.count { it.isGame }})"
                 FilterCategory.APPS -> "Apps (${appsList.count { !it.isGame }})"
             }

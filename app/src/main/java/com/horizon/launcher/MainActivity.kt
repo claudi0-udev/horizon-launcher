@@ -26,8 +26,7 @@ class MainActivity : ComponentActivity() {
 
     private val requestPermissionsLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        // Reload user profile once permissions are granted or denied
+    ) { _ ->
         loadProfile()
     }
 
@@ -48,6 +47,12 @@ class MainActivity : ComponentActivity() {
             var isLoading by remember { mutableStateOf(true) }
 
             val scope = rememberCoroutineScope()
+
+            fun reloadApps() {
+                scope.launch {
+                    appsList = appRepository.getInstalledApps()
+                }
+            }
 
             LaunchedEffect(Unit) {
                 scope.launch {
@@ -75,6 +80,8 @@ class MainActivity : ComponentActivity() {
                     onLaunchApp = { app ->
                         if (app.launchIntent != null) {
                             try {
+                                appRepository.recordAppLaunch(app.packageName)
+                                reloadApps()
                                 startActivity(app.launchIntent)
                             } catch (e: Exception) {
                                 Toast.makeText(
@@ -112,6 +119,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun loadProfile() {
+        @Suppress("OPT_IN_USAGE")
         kotlinx.coroutines.GlobalScope.launch {
             val prof = userProfileRepository.getUserProfile()
             profileState.value = prof
