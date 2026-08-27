@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">Horizon Launcher</string>
+    <string name="online_services">Online</string>
+    <string name="news">Noticias</string>
+    <string name="store">Tienda</string>
+    <string name="gallery">Galería</string>
+    <string name="controllers">Mandos</string>
+    <string name="settings">Configuración</string>
+    <string name="power">Modo de espera</string>
+    <string name="all_apps">Todas las apps</string>
+    <string name="games_tab">Juegos</string>
+    <string name="apps_tab">Aplicaciones</string>
+</resources>
