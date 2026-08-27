@@ -9,7 +9,9 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
@@ -46,6 +48,7 @@ fun QuickSettingsDrawer(
     val context = LocalContext.current
     val memoryBooster = remember { MemoryBoosterRepository(context) }
     val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
+    val scrollState = rememberScrollState()
 
     var currentVolume by remember {
         mutableFloatStateOf(
@@ -99,7 +102,9 @@ fun QuickSettingsDrawer(
                     .padding(20.dp)
             ) {
                 Column(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(scrollState),
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column(
@@ -289,12 +294,15 @@ fun QuickSettingsDrawer(
                                 fontWeight = FontWeight.Bold
                             )
                         }
+
+                        Spacer(modifier = Modifier.height(12.dp))
                     }
 
                     Text(
                         text = "Horizon Launcher v1.0 • Gamer Edition",
                         fontSize = 10.sp,
-                        color = Color.Gray
+                        color = Color.Gray,
+                        modifier = Modifier.padding(top = 12.dp)
                     )
                 }
             }
