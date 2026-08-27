@@ -26,7 +26,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.horizon.launcher.ui.theme.AccentCyan
-import com.horizon.launcher.ui.theme.AccentRed
 
 data class ActionButton(
     val id: String,
@@ -39,46 +38,36 @@ data class ActionButton(
 @Composable
 fun BottomActionBar(
     isDarkTheme: Boolean,
+    onOpenBrowser: () -> Unit,
+    onOpenGallery: () -> Unit,
+    onOpenControllers: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenPower: () -> Unit,
     onOpenAllApps: () -> Unit,
     focusRequesters: List<FocusRequester> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     val buttons = listOf(
         ActionButton(
-            id = "online",
-            title = "Online",
-            icon = Icons.Default.Public,
-            color = AccentRed,
-            onClick = {}
-        ),
-        ActionButton(
-            id = "news",
-            title = "Noticias",
-            icon = Icons.Default.Newspaper,
-            color = Color(0xFFFF5722),
-            onClick = {}
-        ),
-        ActionButton(
-            id = "store",
-            title = "Tienda",
-            icon = Icons.Default.ShoppingCart,
-            color = Color(0xFFFF9800),
-            onClick = {}
+            id = "browser",
+            title = "Navegador",
+            icon = Icons.Default.Language,
+            color = Color(0xFF2196F3),
+            onClick = onOpenBrowser
         ),
         ActionButton(
             id = "gallery",
             title = "Galería",
             icon = Icons.Default.PhotoLibrary,
             color = Color(0xFF00BCD4),
-            onClick = {}
+            onClick = onOpenGallery
         ),
         ActionButton(
             id = "controllers",
             title = "Mandos",
             icon = Icons.Default.Gamepad,
             color = Color(0xFF607D8B),
-            onClick = {}
+            onClick = onOpenControllers
         ),
         ActionButton(
             id = "settings",
@@ -92,7 +81,7 @@ fun BottomActionBar(
             title = "Modo de espera",
             icon = Icons.Default.PowerSettingsNew,
             color = Color(0xFF546E7A),
-            onClick = {}
+            onClick = onOpenPower
         ),
         ActionButton(
             id = "all_apps",
@@ -137,11 +126,11 @@ fun BottomActionBar(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(50.dp)
+                            .size(54.dp)
                             .clip(CircleShape)
                             .background(btn.color)
                             .border(
-                                if (isFocused) 3.5.dp else 2.dp,
+                                if (isFocused) 4.dp else 2.dp,
                                 if (isFocused) Color.Yellow else if (isDarkTheme) Color.White.copy(alpha = 0.3f) else Color.Black.copy(alpha = 0.15f),
                                 CircleShape
                             ),
@@ -151,15 +140,15 @@ fun BottomActionBar(
                             imageVector = btn.icon,
                             contentDescription = btn.title,
                             tint = Color.White,
-                            modifier = Modifier.size(26.dp)
+                            modifier = Modifier.size(28.dp)
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
                     Text(
-                        text = btn.title.take(10),
-                        fontSize = 10.sp,
+                        text = btn.title,
+                        fontSize = 11.sp,
                         fontWeight = if (isFocused) FontWeight.Bold else FontWeight.Medium,
                         color = if (isFocused) AccentCyan else if (isDarkTheme) Color.LightGray else Color.DarkGray
                     )

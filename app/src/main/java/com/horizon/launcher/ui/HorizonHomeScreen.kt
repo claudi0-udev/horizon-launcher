@@ -1,6 +1,11 @@
 package com.horizon.launcher.ui
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import android.view.KeyEvent
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -27,7 +32,6 @@ import com.horizon.launcher.ui.components.TopStatusBar
 import com.horizon.launcher.ui.theme.AccentCyan
 import com.horizon.launcher.ui.theme.DarkBg
 import com.horizon.launcher.ui.theme.LightBg
-import kotlinx.coroutines.launch
 
 enum class FilterCategory {
     ALL, GAMES, APPS
@@ -46,6 +50,7 @@ fun HorizonHomeScreen(
     onLaunchApp: (AppModel) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     var selectedCategory by remember { mutableStateOf(FilterCategory.ALL) }
     var selectedAppIndex by remember { mutableIntStateOf(0) }
     var focusedSection by remember { mutableStateOf(FocusedSection.CAROUSEL) }
@@ -59,9 +64,7 @@ fun HorizonHomeScreen(
     }
 
     val lazyListState = rememberLazyListState()
-    val coroutineScope = rememberCoroutineScope()
 
-    // Smooth auto scroll on Gamepad D-Pad Left / Right
     LaunchedEffect(selectedAppIndex, filteredApps.size) {
         if (filteredApps.isNotEmpty() && selectedAppIndex in filteredApps.indices) {
             lazyListState.animateScrollToItem(selectedAppIndex)
@@ -69,9 +72,76 @@ fun HorizonHomeScreen(
     }
 
     val topBarFocusRequester = remember { FocusRequester() }
-    val bottomBarFocusRequesters = remember { List(8) { FocusRequester() } }
+    val bottomBarFocusRequesters = remember { List(6) { FocusRequester() } }
 
     val backgroundColor = if (isDarkTheme) DarkBg else LightBg
+
+    // Helper functions for action intents
+    fun launchBrowser() {
+        try {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com"))
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            try {
+                val intent = Intent(Intent.ACTION_MAIN).apply {
+                    addCategory(Intent.CATEGORY_APP_BROWSER)
+                }
+                context.startActivity(intent)
+            } catch (ex: Exception) {
+                Toast.makeText(context, "No se encontró un navegador de internet", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    fun launchGallery() {
+        try {
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                type = "image/*"
+            }
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            try {
+                val intent = Intent(Intent.ACTION_MAIN).apply {
+                    addCategory(Intent.CATEGORY_APP_GALLERY)
+                }
+                context.startActivity(intent)
+            } catch (ex: Exception) {
+                Toast.makeText(context, "No se encontró una aplicación de galería", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    fun launchControllersSettings() {
+        try {
+            val intent = Intent(Settings.ACTION_BLUETOOTH_SETTINGS)
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            try {
+                val intent = Intent(Settings.ACTION_SETTINGS)
+                context.startActivity(intent)
+            } catch (ex: Exception) {
+                Toast.makeText(context, "No se pudo abrir la configuración de mandos", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    fun launchSystemSettings() {
+        try {
+            val intent = Intent(Settings.ACTION_SETTINGS)
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(context, "No se pudo abrir la configuración del sistema", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun launchPowerSettings() {
+        try {
+            val intent = Intent(Settings.ACTION_DISPLAY_SETTINGS)
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(context, "Configuración de pantalla / energía", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     Box(
         modifier = modifier
@@ -83,7 +153,6 @@ fun HorizonHomeScreen(
                 val nativeKeyCode = keyEvent.nativeKeyEvent.keyCode
 
                 when {
-                    // D-Pad Left / Right: Navigate Carousel Items
                     nativeKeyCode == KeyEvent.KEYCODE_DPAD_LEFT -> {
                         if (focusedSection == FocusedSection.CAROUSEL && selectedAppIndex > 0) {
                             selectedAppIndex--
@@ -96,7 +165,6 @@ fun HorizonHomeScreen(
                             true
                         } else false
                     }
-                    // D-Pad Down: Move focus down
                     nativeKeyCode == KeyEvent.KEYCODE_DPAD_DOWN -> {
                         when (focusedSection) {
                             FocusedSection.TOP_BAR -> {
@@ -113,7 +181,6 @@ fun HorizonHomeScreen(
                             else -> false
                         }
                     }
-                    // D-Pad Up: Move focus up
                     nativeKeyCode == KeyEvent.KEYCODE_DPAD_UP -> {
                         when (focusedSection) {
                             FocusedSection.BOTTOM_BAR -> {
@@ -130,7 +197,6 @@ fun HorizonHomeScreen(
                             else -> false
                         }
                     }
-                    // Button A / Enter: Launch selected app
                     nativeKeyCode == KeyEvent.KEYCODE_BUTTON_A ||
                     nativeKeyCode == KeyEvent.KEYCODE_ENTER ||
                     nativeKeyCode == KeyEvent.KEYCODE_DPAD_CENTER -> {
@@ -142,7 +208,6 @@ fun HorizonHomeScreen(
                             } else false
                         } else false
                     }
-                    // Button Y / X: Cycle Category Filters
                     nativeKeyCode == KeyEvent.KEYCODE_BUTTON_Y -> {
                         selectedCategory = when (selectedCategory) {
                             FilterCategory.ALL -> FilterCategory.GAMES
@@ -152,7 +217,6 @@ fun HorizonHomeScreen(
                         selectedAppIndex = 0
                         true
                     }
-                    // Button X: Toggle Theme
                     nativeKeyCode == KeyEvent.KEYCODE_BUTTON_X -> {
                         onToggleTheme()
                         true
@@ -265,7 +329,11 @@ fun HorizonHomeScreen(
             // 3. Bottom Action Bar
             BottomActionBar(
                 isDarkTheme = isDarkTheme,
-                onOpenSettings = { },
+                onOpenBrowser = { launchBrowser() },
+                onOpenGallery = { launchGallery() },
+                onOpenControllers = { launchControllersSettings() },
+                onOpenSettings = { launchSystemSettings() },
+                onOpenPower = { launchPowerSettings() },
                 onOpenAllApps = {
                     selectedCategory = FilterCategory.ALL
                     selectedAppIndex = 0
