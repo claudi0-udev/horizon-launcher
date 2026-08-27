@@ -14,6 +14,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.*
@@ -24,6 +25,7 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
@@ -408,7 +410,7 @@ fun HorizonHomeScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 32.dp, vertical = 6.dp),
+                            .padding(horizontal = 28.dp, vertical = 4.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -421,8 +423,10 @@ fun HorizonHomeScreen(
                             isDarkTheme = isDarkTheme,
                             isFocused = focusedSection == FocusedSection.SEARCH_BAR,
                             focusRequester = searchBarFocusRequester,
-                            modifier = Modifier.width(280.dp)
+                            modifier = Modifier.width(260.dp)
                         )
+
+                        Spacer(modifier = Modifier.width(12.dp))
 
                         CategoryTabs(
                             selectedCategory = selectedCategory,
@@ -433,7 +437,8 @@ fun HorizonHomeScreen(
                                 selectedCategory = cat
                                 selectedAppIndex = 0
                                 focusedSection = FocusedSection.CAROUSEL
-                            }
+                            },
+                            modifier = Modifier.weight(1f, fill = false)
                         )
                     }
                 } else {
@@ -634,13 +639,13 @@ fun SearchBarField(
 
     Box(
         modifier = modifier
-            .height(40.dp)
-            .clip(RoundedCornerShape(20.dp))
+            .height(38.dp)
+            .clip(RoundedCornerShape(19.dp))
             .background(if (isDarkTheme) Color(0xFF3B3B3B) else Color.White)
             .border(
                 width = if (isSearchFocused || isFocused) 2.5.dp else 1.dp,
                 color = if (isSearchFocused || isFocused) AccentCyan else if (isDarkTheme) Color(0xFF555555) else Color(0xFFD0D0D0),
-                shape = RoundedCornerShape(20.dp)
+                shape = RoundedCornerShape(19.dp)
             )
             .focusRequester(focusRequester)
             .focusable(interactionSource = searchInteractionSource)
@@ -700,10 +705,15 @@ fun CategoryTabs(
     selectedCategory: FilterCategory,
     appsList: List<AppModel>,
     isDarkTheme: Boolean,
-    onSelectCategory: (FilterCategory) -> Unit
+    onSelectCategory: (FilterCategory) -> Unit,
+    modifier: Modifier = Modifier
 ) {
+    val scrollState = rememberScrollState()
+
     Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        modifier = modifier.horizontalScroll(scrollState),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
         FilterCategory.values().forEach { cat ->
             val isSelected = selectedCategory == cat
@@ -716,18 +726,27 @@ fun CategoryTabs(
 
             Box(
                 modifier = Modifier
+                    .height(38.dp)
+                    .clip(RoundedCornerShape(19.dp))
                     .background(
-                        if (isSelected) AccentCyan else Color.Transparent,
-                        shape = RoundedCornerShape(16.dp)
+                        if (isSelected) AccentCyan else if (isDarkTheme) Color(0xFF2E2E2E) else Color(0xFFE8E8E8)
+                    )
+                    .border(
+                        width = if (isSelected) 2.dp else 1.dp,
+                        color = if (isSelected) AccentCyan else if (isDarkTheme) Color(0xFF454545) else Color(0xFFD0D0D0),
+                        shape = RoundedCornerShape(19.dp)
                     )
                     .clickable { onSelectCategory(cat) }
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                    .padding(horizontal = 14.dp),
+                contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = catLabel,
-                    fontSize = 12.sp,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                    color = if (isSelected) Color.White else if (isDarkTheme) Color.LightGray else Color.DarkGray
+                    fontSize = 12.5.sp,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                    color = if (isSelected) Color.White else if (isDarkTheme) Color.LightGray else Color.DarkGray,
+                    maxLines = 1,
+                    softWrap = false
                 )
             }
         }
