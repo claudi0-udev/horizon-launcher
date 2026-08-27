@@ -11,9 +11,11 @@ import androidx.compose.runtime.*
 import androidx.core.content.ContextCompat
 import com.horizon.launcher.data.AppRepository
 import com.horizon.launcher.data.BatteryRepository
+import com.horizon.launcher.data.FavoritesRepository
 import com.horizon.launcher.data.UserProfileRepository
 import com.horizon.launcher.model.AppModel
 import com.horizon.launcher.model.UserProfile
+import com.horizon.launcher.sound.SoundEffectManager
 import com.horizon.launcher.ui.HorizonHomeScreen
 import com.horizon.launcher.ui.theme.HorizonLauncherTheme
 import kotlinx.coroutines.launch
@@ -23,6 +25,8 @@ class MainActivity : ComponentActivity() {
     private lateinit var appRepository: AppRepository
     private lateinit var userProfileRepository: UserProfileRepository
     private lateinit var batteryRepository: BatteryRepository
+    private lateinit var favoritesRepository: FavoritesRepository
+    private lateinit var soundEffectManager: SoundEffectManager
 
     private val requestPermissionsLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -37,6 +41,8 @@ class MainActivity : ComponentActivity() {
         appRepository = AppRepository(this)
         userProfileRepository = UserProfileRepository(this)
         batteryRepository = BatteryRepository(this)
+        favoritesRepository = FavoritesRepository(this)
+        soundEffectManager = SoundEffectManager(this)
 
         checkAndRequestPermissions()
 
@@ -76,7 +82,15 @@ class MainActivity : ComponentActivity() {
                     batteryLevel = batteryLevel,
                     isLoading = isLoading,
                     isDarkTheme = isDarkTheme,
+                    soundManager = soundEffectManager,
+                    favoritesRepo = favoritesRepository,
                     onToggleTheme = { isDarkTheme = !isDarkTheme },
+                    onToggleFavoriteApp = { app ->
+                        val isFav = favoritesRepository.toggleFavorite(app.packageName)
+                        val msg = if (isFav) "Fijado en favoritos ★" else "Desfijado de favoritos"
+                        Toast.makeText(this@MainActivity, "${app.label}: $msg", Toast.LENGTH_SHORT).show()
+                        reloadApps()
+                    },
                     onLaunchApp = { app ->
                         if (app.launchIntent != null) {
                             try {
@@ -101,6 +115,11 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        soundEffectManager.release()
     }
 
     private fun checkAndRequestPermissions() {

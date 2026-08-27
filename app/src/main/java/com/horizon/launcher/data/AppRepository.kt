@@ -15,6 +15,8 @@ import java.util.Calendar
 class AppRepository(private val context: Context) {
 
     private val prefs: SharedPreferences = context.getSharedPreferences("app_launch_stats", Context.MODE_PRIVATE)
+    private val favoritesRepo = FavoritesRepository(context)
+    private val artworkRepo = CustomArtworkRepository(context)
 
     fun recordAppLaunch(packageName: String) {
         val currentCount = prefs.getInt(packageName, 0)
@@ -37,7 +39,6 @@ class AppRepository(private val context: Context) {
             pm.queryIntentActivities(mainIntent, 0)
         }
 
-        // Fetch System Usage Stats if available
         val usageMap = mutableMapOf<String, Long>()
         try {
             val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
@@ -75,33 +76,41 @@ class AppRepository(private val context: Context) {
                 (appInfo.flags and ApplicationInfo.FLAG_IS_GAME) != 0
             }
 
+            val isFav = favoritesRepo.isFavorite(packageName)
+            val customBmp = artworkRepo.getCustomArtworkBitmap(packageName)
+
             appList.add(
                 AppModel(
                     packageName = packageName,
                     label = label,
                     icon = icon,
                     isGame = isGame,
+                    isFavorite = isFav,
+                    customBitmap = customBmp,
                     launchIntent = launchIntent
                 )
             )
         }
 
-        // Sort by Most Used Apps (Local launch count + System Usage Time), then alphabetically
+        // Pinned Favorites ALWAYS appear first, then sorted by Most Used score
         appList.sortWith(Comparator { app1, app2 ->
-            val localClicks1 = prefs.getInt(app1.packageName, 0)
-            val localClicks2 = prefs.getInt(app2.packageName, 0)
-
-            val timeUsed1 = usageMap[app1.packageName] ?: 0L
-            val timeUsed2 = usageMap[app2.packageName] ?: 0L
-
-            // Combined score: local launches have heavy weight (10 mins per launch)
-            val score1 = localClicks1 * 600000L + timeUsed1
-            val score2 = localClicks2 * 600000L + timeUsed2
-
-            if (score1 != score2) {
-                score2.compareTo(score1) // Higher score first
+            if (app1.isFavorite != app2.isFavorite) {
+                if (app1.isFavorite) -1 else 1
             } else {
-                app1.label.lowercase().compareTo(app2.label.lowercase())
+                val localClicks1 = prefs.getInt(app1.packageName, 0)
+                val localClicks2 = prefs.getInt(app2.packageName, 0)
+
+                val timeUsed1 = usageMap[app1.packageName] ?: 0L
+                val timeUsed2 = usageMap[app2.packageName] ?: 0L
+
+                val score1 = localClicks1 * 600000L + timeUsed1
+                val score2 = localClicks2 * 600000L + timeUsed2
+
+                if (score1 != score2) {
+                    score2.compareTo(score1)
+                } else {
+                    app1.label.lowercase().compareTo(app2.label.lowercase())
+                }
             }
         })
 

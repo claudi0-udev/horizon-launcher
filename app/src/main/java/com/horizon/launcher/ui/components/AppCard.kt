@@ -2,10 +2,11 @@ package com.horizon.launcher.ui.components
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -23,6 +24,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -33,12 +35,14 @@ import com.horizon.launcher.model.AppModel
 import com.horizon.launcher.ui.theme.AccentCyan
 import com.horizon.launcher.ui.theme.AccentRed
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AppCard(
     app: AppModel,
     isSelected: Boolean,
     onSelect: () -> Unit,
     onLaunch: () -> Unit,
+    onToggleFavorite: () -> Unit = {},
     isDarkTheme: Boolean,
     focusRequester: FocusRequester = remember { FocusRequester() },
     modifier: Modifier = Modifier
@@ -69,13 +73,18 @@ fun AppCard(
                 }
             }
             .focusable(interactionSource = interactionSource)
-            .clickable {
-                if (activeFocus) {
-                    onLaunch()
-                } else {
-                    onSelect()
+            .combinedClickable(
+                onClick = {
+                    if (activeFocus) {
+                        onLaunch()
+                    } else {
+                        onSelect()
+                    }
+                },
+                onLongClick = {
+                    onToggleFavorite()
                 }
-            }
+            )
     ) {
         Box(
             modifier = Modifier
@@ -89,13 +98,21 @@ fun AppCard(
                 .border(borderWidth, borderColor, RoundedCornerShape(12.dp)),
             contentAlignment = Alignment.Center
         ) {
-            val bitmap = remember(app.icon) {
+            val customBitmap = app.customBitmap
+            val defaultBitmap = remember(app.icon) {
                 app.icon?.toBitmap()?.asImageBitmap()
             }
 
-            if (bitmap != null) {
+            if (customBitmap != null) {
                 Image(
-                    bitmap = bitmap,
+                    bitmap = customBitmap.asImageBitmap(),
+                    contentDescription = app.label,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else if (defaultBitmap != null) {
+                Image(
+                    bitmap = defaultBitmap,
                     contentDescription = app.label,
                     modifier = Modifier
                         .fillMaxSize()
@@ -110,6 +127,25 @@ fun AppCard(
                 )
             }
 
+            // Star badge for pinned favorites
+            if (app.isFavorite) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(6.dp)
+                        .background(Color(0xFFFFC107), RoundedCornerShape(4.dp))
+                        .padding(horizontal = 4.dp, vertical = 1.dp)
+                ) {
+                    Text(
+                        text = "★",
+                        color = Color.Black,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            // Game tag badge
             if (app.isGame) {
                 Box(
                     modifier = Modifier

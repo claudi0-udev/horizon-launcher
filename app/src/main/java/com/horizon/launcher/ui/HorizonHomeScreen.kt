@@ -47,12 +47,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.horizon.launcher.admin.LauncherAdminReceiver
+import com.horizon.launcher.data.FavoritesRepository
 import com.horizon.launcher.model.AppModel
 import com.horizon.launcher.model.UserProfile
+import com.horizon.launcher.sound.SoundEffectManager
 import com.horizon.launcher.ui.components.ActiveAppsDrawer
 import com.horizon.launcher.ui.components.AllAppsDrawer
 import com.horizon.launcher.ui.components.AppCard
 import com.horizon.launcher.ui.components.BottomActionBar
+import com.horizon.launcher.ui.components.QuickSettingsDrawer
 import com.horizon.launcher.ui.components.TopStatusBar
 import com.horizon.launcher.ui.theme.AccentCyan
 import com.horizon.launcher.ui.theme.DarkBg
@@ -73,7 +76,10 @@ fun HorizonHomeScreen(
     batteryLevel: Int,
     isLoading: Boolean,
     isDarkTheme: Boolean,
+    soundManager: SoundEffectManager,
+    favoritesRepo: FavoritesRepository,
     onToggleTheme: () -> Unit,
+    onToggleFavoriteApp: (AppModel) -> Unit,
     onLaunchApp: (AppModel) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -87,6 +93,7 @@ fun HorizonHomeScreen(
     var focusedSection by remember { mutableStateOf(FocusedSection.CAROUSEL) }
     var isAllAppsDrawerOpen by remember { mutableStateOf(false) }
     var isActiveAppsDrawerOpen by remember { mutableStateOf(false) }
+    var isQuickSettingsOpen by remember { mutableStateOf(false) }
 
     val filteredApps = remember(appsList, selectedCategory, searchQuery) {
         appsList.filter { app ->
@@ -120,6 +127,7 @@ fun HorizonHomeScreen(
     val backgroundColor = if (isDarkTheme) DarkBg else LightBg
 
     fun launchBrowser() {
+        soundManager.playSelectSound()
         try {
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com"))
             context.startActivity(intent)
@@ -136,6 +144,7 @@ fun HorizonHomeScreen(
     }
 
     fun launchGallery() {
+        soundManager.playSelectSound()
         try {
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 type = "image/*"
@@ -154,6 +163,7 @@ fun HorizonHomeScreen(
     }
 
     fun launchControllersSettings() {
+        soundManager.playSelectSound()
         try {
             val intent = Intent(Settings.ACTION_BLUETOOTH_SETTINGS)
             context.startActivity(intent)
@@ -168,15 +178,12 @@ fun HorizonHomeScreen(
     }
 
     fun launchSystemSettings() {
-        try {
-            val intent = Intent(Settings.ACTION_SETTINGS)
-            context.startActivity(intent)
-        } catch (e: Exception) {
-            Toast.makeText(context, "No se pudo abrir la configuración del sistema", Toast.LENGTH_SHORT).show()
-        }
+        soundManager.playSelectSound()
+        isQuickSettingsOpen = true
     }
 
     fun launchPowerStandby() {
+        soundManager.playSelectSound()
         try {
             val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
             val compName = ComponentName(context, LauncherAdminReceiver::class.java)
@@ -198,6 +205,7 @@ fun HorizonHomeScreen(
     }
 
     fun launchHomeSettingsPicker() {
+        soundManager.playSelectSound()
         try {
             val intent = Intent(Settings.ACTION_HOME_SETTINGS)
             context.startActivity(intent)
@@ -224,14 +232,21 @@ fun HorizonHomeScreen(
                 val nativeKeyCode = keyEvent.nativeKeyEvent.keyCode
 
                 when {
+                    nativeKeyCode == KeyEvent.KEYCODE_MENU || nativeKeyCode == KeyEvent.KEYCODE_BUTTON_SELECT -> {
+                        soundManager.playSelectSound()
+                        isQuickSettingsOpen = true
+                        true
+                    }
                     nativeKeyCode == KeyEvent.KEYCODE_DPAD_LEFT -> {
                         if (focusedSection == FocusedSection.CAROUSEL && selectedAppIndex > 0) {
+                            soundManager.playMoveSound()
                             selectedAppIndex--
                             true
                         } else false
                     }
                     nativeKeyCode == KeyEvent.KEYCODE_DPAD_RIGHT -> {
                         if (focusedSection == FocusedSection.CAROUSEL && selectedAppIndex < filteredApps.size - 1) {
+                            soundManager.playMoveSound()
                             selectedAppIndex++
                             true
                         } else false
@@ -239,18 +254,22 @@ fun HorizonHomeScreen(
                     nativeKeyCode == KeyEvent.KEYCODE_DPAD_DOWN -> {
                         when (focusedSection) {
                             FocusedSection.TOP_BAR -> {
+                                soundManager.playMoveSound()
                                 focusedSection = FocusedSection.SEARCH_BAR
                                 try { searchBarFocusRequester.requestFocus() } catch (_: Exception) {}
                                 true
                             }
                             FocusedSection.SEARCH_BAR -> {
+                                soundManager.playMoveSound()
                                 focusedSection = FocusedSection.CAROUSEL
                                 true
                             }
                             FocusedSection.CAROUSEL -> {
                                 if (!isLandscape && selectedAppIndex + 3 < filteredApps.size) {
+                                    soundManager.playMoveSound()
                                     selectedAppIndex += 3
                                 } else {
+                                    soundManager.playMoveSound()
                                     focusedSection = FocusedSection.BOTTOM_BAR
                                     try { bottomBarFocusRequesters.firstOrNull()?.requestFocus() } catch (_: Exception) {}
                                 }
@@ -262,19 +281,23 @@ fun HorizonHomeScreen(
                     nativeKeyCode == KeyEvent.KEYCODE_DPAD_UP -> {
                         when (focusedSection) {
                             FocusedSection.BOTTOM_BAR -> {
+                                soundManager.playMoveSound()
                                 focusedSection = FocusedSection.CAROUSEL
                                 true
                             }
                             FocusedSection.CAROUSEL -> {
                                 if (!isLandscape && selectedAppIndex - 3 >= 0) {
+                                    soundManager.playMoveSound()
                                     selectedAppIndex -= 3
                                 } else {
+                                    soundManager.playMoveSound()
                                     focusedSection = FocusedSection.SEARCH_BAR
                                     try { searchBarFocusRequester.requestFocus() } catch (_: Exception) {}
                                 }
                                 true
                             }
                             FocusedSection.SEARCH_BAR -> {
+                                soundManager.playMoveSound()
                                 focusedSection = FocusedSection.TOP_BAR
                                 try { topBarFocusRequester.requestFocus() } catch (_: Exception) {}
                                 true
@@ -288,12 +311,14 @@ fun HorizonHomeScreen(
                         if (focusedSection == FocusedSection.CAROUSEL && filteredApps.isNotEmpty()) {
                             val targetApp = filteredApps.getOrNull(selectedAppIndex)
                             if (targetApp != null) {
+                                soundManager.playLaunchSound()
                                 onLaunchApp(targetApp)
                                 true
                             } else false
                         } else false
                     }
                     nativeKeyCode == KeyEvent.KEYCODE_BUTTON_Y -> {
+                        soundManager.playSelectSound()
                         selectedCategory = when (selectedCategory) {
                             FilterCategory.ALL -> FilterCategory.GAMES
                             FilterCategory.GAMES -> FilterCategory.APPS
@@ -303,6 +328,7 @@ fun HorizonHomeScreen(
                         true
                     }
                     nativeKeyCode == KeyEvent.KEYCODE_BUTTON_X -> {
+                        soundManager.playSelectSound()
                         onToggleTheme()
                         true
                     }
@@ -320,7 +346,10 @@ fun HorizonHomeScreen(
                 batteryLevel = batteryLevel,
                 isDarkTheme = isDarkTheme,
                 isLandscape = isLandscape,
-                onToggleTheme = onToggleTheme,
+                onToggleTheme = {
+                    soundManager.playSelectSound()
+                    onToggleTheme()
+                },
                 focusRequester = topBarFocusRequester
             )
 
@@ -354,6 +383,7 @@ fun HorizonHomeScreen(
                             appsList = appsList,
                             isDarkTheme = isDarkTheme,
                             onSelectCategory = { cat ->
+                                soundManager.playSelectSound()
                                 selectedCategory = cat
                                 selectedAppIndex = 0
                                 focusedSection = FocusedSection.CAROUSEL
@@ -385,6 +415,7 @@ fun HorizonHomeScreen(
                             appsList = appsList,
                             isDarkTheme = isDarkTheme,
                             onSelectCategory = { cat ->
+                                soundManager.playSelectSound()
                                 selectedCategory = cat
                                 selectedAppIndex = 0
                                 focusedSection = FocusedSection.CAROUSEL
@@ -437,7 +468,14 @@ fun HorizonHomeScreen(
                                         selectedAppIndex = index
                                         focusedSection = FocusedSection.CAROUSEL
                                     },
-                                    onLaunch = { onLaunchApp(app) },
+                                    onLaunch = {
+                                        soundManager.playLaunchSound()
+                                        onLaunchApp(app)
+                                    },
+                                    onToggleFavorite = {
+                                        soundManager.playSelectSound()
+                                        onToggleFavoriteApp(app)
+                                    },
                                     isDarkTheme = isDarkTheme
                                 )
                             }
@@ -459,7 +497,14 @@ fun HorizonHomeScreen(
                                         selectedAppIndex = index
                                         focusedSection = FocusedSection.CAROUSEL
                                     },
-                                    onLaunch = { onLaunchApp(app) },
+                                    onLaunch = {
+                                        soundManager.playLaunchSound()
+                                        onLaunchApp(app)
+                                    },
+                                    onToggleFavorite = {
+                                        soundManager.playSelectSound()
+                                        onToggleFavoriteApp(app)
+                                    },
                                     isDarkTheme = isDarkTheme
                                 )
                             }
@@ -474,38 +519,55 @@ fun HorizonHomeScreen(
                 isLandscape = isLandscape,
                 onOpenBrowser = { launchBrowser() },
                 onOpenGallery = { launchGallery() },
-                onOpenActiveApps = { isActiveAppsDrawerOpen = true },
+                onOpenActiveApps = {
+                    soundManager.playSelectSound()
+                    isActiveAppsDrawerOpen = true
+                },
                 onOpenControllers = { launchControllersSettings() },
                 onOpenSettings = { launchSystemSettings() },
                 onOpenLauncherPicker = { launchHomeSettingsPicker() },
                 onOpenPower = { launchPowerStandby() },
-                onOpenAllApps = { isAllAppsDrawerOpen = true },
+                onOpenAllApps = {
+                    soundManager.playSelectSound()
+                    isAllAppsDrawerOpen = true
+                },
                 focusRequesters = bottomBarFocusRequesters
             )
         }
 
-        // Fullscreen All Apps Drawer Modal
+        // All Apps Drawer Modal
         AllAppsDrawer(
             isOpen = isAllAppsDrawerOpen,
             appsList = appsList,
             isDarkTheme = isDarkTheme,
             onDismiss = { isAllAppsDrawerOpen = false },
             onLaunchApp = { app ->
+                soundManager.playLaunchSound()
                 onLaunchApp(app)
                 isAllAppsDrawerOpen = false
             }
         )
 
-        // Active Apps / Task Manager Drawer Modal
+        // Active Apps Drawer Modal
         ActiveAppsDrawer(
             isOpen = isActiveAppsDrawerOpen,
             allApps = appsList,
             isDarkTheme = isDarkTheme,
             onDismiss = { isActiveAppsDrawerOpen = false },
             onLaunchApp = { app ->
+                soundManager.playLaunchSound()
                 onLaunchApp(app)
                 isActiveAppsDrawerOpen = false
             }
+        )
+
+        // Quick Settings Side Drawer Panel
+        QuickSettingsDrawer(
+            isOpen = isQuickSettingsOpen,
+            isDarkTheme = isDarkTheme,
+            soundManager = soundManager,
+            onToggleTheme = onToggleTheme,
+            onDismiss = { isQuickSettingsOpen = false }
         )
     }
 }
