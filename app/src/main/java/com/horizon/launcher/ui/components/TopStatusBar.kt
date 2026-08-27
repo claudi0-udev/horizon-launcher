@@ -60,6 +60,7 @@ fun TopStatusBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .statusBarsPadding() // Ensures top notch and status bar never overlap profile or clock
             .padding(
                 horizontal = if (isLandscape) 24.dp else 14.dp,
                 vertical = if (isLandscape) 12.dp else 8.dp
@@ -189,10 +190,9 @@ fun TopStatusBar(
                     color = textColor
                 )
             } else {
-                // Stacked compact vertical clock: HH on top, mm on bottom without colon
                 val hours = if (currentTime.contains(":")) currentTime.substringBefore(":") else "00"
                 val minutes = if (currentTime.contains(":")) currentTime.substringAfter(":") else "00"
-                
+
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,

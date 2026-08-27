@@ -93,7 +93,6 @@ fun BottomActionBar(
         )
     )
 
-    // Hide "all_apps" button in Portrait mode since all apps are already displayed in the vertical grid
     val activeButtons = remember(isLandscape) {
         if (isLandscape) allButtons else allButtons.filter { it.id != "all_apps" }
     }
@@ -101,7 +100,8 @@ fun BottomActionBar(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = if (isLandscape) 14.dp else 10.dp),
+            .navigationBarsPadding() // Ensures system navigation bar (back/home/recents) never overlaps action buttons
+            .padding(vertical = if (isLandscape) 12.dp else 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(
@@ -111,7 +111,7 @@ fun BottomActionBar(
                 .background(if (isDarkTheme) Color(0xFF424242) else Color(0xFFDCDCDC))
         )
 
-        Spacer(modifier = Modifier.height(if (isLandscape) 14.dp else 10.dp))
+        Spacer(modifier = Modifier.height(if (isLandscape) 12.dp else 8.dp))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -132,7 +132,7 @@ fun BottomActionBar(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(if (isLandscape) 52.dp else 46.dp)
+                            .size(if (isLandscape) 52.dp else 44.dp)
                             .clip(CircleShape)
                             .background(btn.color)
                             .border(
@@ -146,7 +146,7 @@ fun BottomActionBar(
                             imageVector = btn.icon,
                             contentDescription = btn.title,
                             tint = Color.White,
-                            modifier = Modifier.size(if (isLandscape) 26.dp else 22.dp)
+                            modifier = Modifier.size(if (isLandscape) 26.dp else 20.dp)
                         )
                     }
 
@@ -154,7 +154,7 @@ fun BottomActionBar(
 
                     Text(
                         text = btn.title,
-                        fontSize = if (isLandscape) 11.sp else 9.5.sp,
+                        fontSize = if (isLandscape) 11.sp else 9.sp,
                         fontWeight = if (isFocused) FontWeight.Bold else FontWeight.Medium,
                         color = if (isFocused) AccentCyan else if (isDarkTheme) Color.LightGray else Color.DarkGray
                     )
