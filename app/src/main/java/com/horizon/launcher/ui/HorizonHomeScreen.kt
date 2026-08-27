@@ -273,11 +273,28 @@ fun HorizonHomeScreen(
                 val nativeKeyCode = keyEvent.nativeKeyEvent.keyCode
 
                 when {
-                    // Gamepad Hotkeys: L1+R1 / LB+RB -> RAM Booster
-                    (nativeKeyCode == KeyEvent.KEYCODE_BUTTON_L1 || nativeKeyCode == KeyEvent.KEYCODE_BUTTON_L2) &&
-                    (nativeKeyCode == KeyEvent.KEYCODE_BUTTON_R1 || nativeKeyCode == KeyEvent.KEYCODE_BUTTON_R2) -> {
-                        val freedMB = memoryBooster.boostRAM()
-                        Toast.makeText(context, "Game Booster: $freedMB MB de RAM liberados 🚀", Toast.LENGTH_SHORT).show()
+                    // L1 / LB or L2 -> Cycle to PREVIOUS category tab
+                    nativeKeyCode == KeyEvent.KEYCODE_BUTTON_L1 || nativeKeyCode == KeyEvent.KEYCODE_BUTTON_L2 -> {
+                        soundManager.playSelectSound()
+                        selectedCategory = when (selectedCategory) {
+                            FilterCategory.ALL -> FilterCategory.APPS
+                            FilterCategory.EMULATORS -> FilterCategory.ALL
+                            FilterCategory.GAMES -> FilterCategory.EMULATORS
+                            FilterCategory.APPS -> FilterCategory.GAMES
+                        }
+                        selectedAppIndex = 0
+                        true
+                    }
+                    // R1 / RB or R2 -> Cycle to NEXT category tab
+                    nativeKeyCode == KeyEvent.KEYCODE_BUTTON_R1 || nativeKeyCode == KeyEvent.KEYCODE_BUTTON_R2 -> {
+                        soundManager.playSelectSound()
+                        selectedCategory = when (selectedCategory) {
+                            FilterCategory.ALL -> FilterCategory.EMULATORS
+                            FilterCategory.EMULATORS -> FilterCategory.GAMES
+                            FilterCategory.GAMES -> FilterCategory.APPS
+                            FilterCategory.APPS -> FilterCategory.ALL
+                        }
+                        selectedAppIndex = 0
                         true
                     }
                     nativeKeyCode == KeyEvent.KEYCODE_MENU || nativeKeyCode == KeyEvent.KEYCODE_BUTTON_SELECT -> {
@@ -743,7 +760,7 @@ fun CategoryTabs(
                 Text(
                     text = catLabel,
                     fontSize = 12.5.sp,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                     color = if (isSelected) Color.White else if (isDarkTheme) Color.LightGray else Color.DarkGray,
                     maxLines = 1,
                     softWrap = false
