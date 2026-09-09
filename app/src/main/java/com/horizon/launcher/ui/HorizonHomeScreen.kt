@@ -56,6 +56,9 @@ import androidx.core.view.WindowInsetsControllerCompat
 import com.horizon.launcher.admin.LauncherAdminReceiver
 import com.horizon.launcher.data.FavoritesRepository
 import com.horizon.launcher.data.MemoryBoosterRepository
+import com.horizon.launcher.gamepad.BluetoothControllerManager
+import com.horizon.launcher.gamepad.GamepadAction
+import com.horizon.launcher.gamepad.GamepadMappingRepository
 import com.horizon.launcher.model.AppModel
 import com.horizon.launcher.model.UserProfile
 import com.horizon.launcher.sound.SoundEffectManager
@@ -63,6 +66,7 @@ import com.horizon.launcher.ui.components.ActiveAppsDrawer
 import com.horizon.launcher.ui.components.AllAppsDrawer
 import com.horizon.launcher.ui.components.AppCard
 import com.horizon.launcher.ui.components.BottomActionBar
+import com.horizon.launcher.ui.components.ControllersHubDialog
 import com.horizon.launcher.ui.components.GameBootSplashScreen
 import com.horizon.launcher.ui.components.QuickSettingsDrawer
 import com.horizon.launcher.ui.components.TopStatusBar
@@ -89,6 +93,8 @@ fun HorizonHomeScreen(
     isDarkTheme: Boolean,
     soundManager: SoundEffectManager,
     favoritesRepo: FavoritesRepository,
+    gamepadMappingRepo: GamepadMappingRepository,
+    bluetoothManager: BluetoothControllerManager,
     onToggleTheme: () -> Unit,
     onToggleFavoriteApp: (AppModel) -> Unit,
     onLaunchApp: (AppModel) -> Unit,
@@ -123,6 +129,7 @@ fun HorizonHomeScreen(
     var isAllAppsDrawerOpen by remember { mutableStateOf(false) }
     var isActiveAppsDrawerOpen by remember { mutableStateOf(false) }
     var isQuickSettingsOpen by remember { mutableStateOf(false) }
+    var isControllersHubOpen by remember { mutableStateOf(false) }
     var bootingApp by remember { mutableStateOf<AppModel?>(null) }
 
     val filteredApps = remember(appsList, selectedCategory, searchQuery) {
@@ -205,17 +212,7 @@ fun HorizonHomeScreen(
 
     fun launchControllersSettings() {
         soundManager.playSelectSound()
-        try {
-            val intent = Intent(Settings.ACTION_BLUETOOTH_SETTINGS)
-            context.startActivity(intent)
-        } catch (e: Exception) {
-            try {
-                val intent = Intent(Settings.ACTION_SETTINGS)
-                context.startActivity(intent)
-            } catch (ex: Exception) {
-                Toast.makeText(context, "No se pudo abrir la configuración de mandos", Toast.LENGTH_SHORT).show()
-            }
-        }
+        isControllersHubOpen = true
     }
 
     fun launchSystemSettings() {
@@ -270,11 +267,15 @@ fun HorizonHomeScreen(
             .onPreviewKeyEvent { keyEvent ->
                 if (keyEvent.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
 
-                val nativeKeyCode = keyEvent.nativeKeyEvent.keyCode
+                val nativeKeyEvent = keyEvent.nativeKeyEvent
+                val nativeKeyCode = nativeKeyEvent.keyCode
+                val descriptor = nativeKeyEvent.device?.descriptor
 
-                when {
-                    // L1 / LB or L2 -> Cycle to PREVIOUS category tab
-                    nativeKeyCode == KeyEvent.KEYCODE_BUTTON_L1 || nativeKeyCode == KeyEvent.KEYCODE_BUTTON_L2 -> {
+                // Resolve logical action through custom gamepad mapping!
+                val resolvedAction = gamepadMappingRepo.resolveAction(descriptor, nativeKeyCode)
+
+                when (resolvedAction) {
+                    GamepadAction.TAB_PREV -> {
                         soundManager.playSelectSound()
                         selectedCategory = when (selectedCategory) {
                             FilterCategory.ALL -> FilterCategory.APPS
@@ -285,8 +286,7 @@ fun HorizonHomeScreen(
                         selectedAppIndex = 0
                         true
                     }
-                    // R1 / RB or R2 -> Cycle to NEXT category tab
-                    nativeKeyCode == KeyEvent.KEYCODE_BUTTON_R1 || nativeKeyCode == KeyEvent.KEYCODE_BUTTON_R2 -> {
+                    GamepadAction.TAB_NEXT -> {
                         soundManager.playSelectSound()
                         selectedCategory = when (selectedCategory) {
                             FilterCategory.ALL -> FilterCategory.EMULATORS
@@ -297,26 +297,31 @@ fun HorizonHomeScreen(
                         selectedAppIndex = 0
                         true
                     }
-                    nativeKeyCode == KeyEvent.KEYCODE_MENU || nativeKeyCode == KeyEvent.KEYCODE_BUTTON_SELECT -> {
+                    GamepadAction.RAM_BOOSTER -> {
+                        val freedMB = memoryBooster.boostRAM()
+                        Toast.makeText(context, "Game Booster: $freedMB MB de RAM liberados 🚀", Toast.LENGTH_SHORT).show()
+                        true
+                    }
+                    GamepadAction.QUICK_MENU -> {
                         soundManager.playSelectSound()
                         isQuickSettingsOpen = true
                         true
                     }
-                    nativeKeyCode == KeyEvent.KEYCODE_DPAD_LEFT -> {
+                    GamepadAction.DPAD_LEFT -> {
                         if (focusedSection == FocusedSection.CAROUSEL && selectedAppIndex > 0) {
                             soundManager.playMoveSound()
                             selectedAppIndex--
                             true
                         } else false
                     }
-                    nativeKeyCode == KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                    GamepadAction.DPAD_RIGHT -> {
                         if (focusedSection == FocusedSection.CAROUSEL && selectedAppIndex < filteredApps.size - 1) {
                             soundManager.playMoveSound()
                             selectedAppIndex++
                             true
                         } else false
                     }
-                    nativeKeyCode == KeyEvent.KEYCODE_DPAD_DOWN -> {
+                    GamepadAction.DPAD_DOWN -> {
                         when (focusedSection) {
                             FocusedSection.TOP_BAR -> {
                                 soundManager.playMoveSound()
@@ -343,7 +348,7 @@ fun HorizonHomeScreen(
                             else -> false
                         }
                     }
-                    nativeKeyCode == KeyEvent.KEYCODE_DPAD_UP -> {
+                    GamepadAction.DPAD_UP -> {
                         when (focusedSection) {
                             FocusedSection.BOTTOM_BAR -> {
                                 soundManager.playMoveSound()
@@ -370,9 +375,7 @@ fun HorizonHomeScreen(
                             else -> false
                         }
                     }
-                    nativeKeyCode == KeyEvent.KEYCODE_BUTTON_A ||
-                    nativeKeyCode == KeyEvent.KEYCODE_ENTER ||
-                    nativeKeyCode == KeyEvent.KEYCODE_DPAD_CENTER -> {
+                    GamepadAction.CONFIRM_LAUNCH -> {
                         if (focusedSection == FocusedSection.CAROUSEL && filteredApps.isNotEmpty()) {
                             val targetApp = filteredApps.getOrNull(selectedAppIndex)
                             if (targetApp != null) {
@@ -381,7 +384,7 @@ fun HorizonHomeScreen(
                             } else false
                         } else false
                     }
-                    nativeKeyCode == KeyEvent.KEYCODE_BUTTON_Y -> {
+                    GamepadAction.CYCLE_CATEGORY -> {
                         soundManager.playSelectSound()
                         selectedCategory = when (selectedCategory) {
                             FilterCategory.ALL -> FilterCategory.EMULATORS
@@ -392,12 +395,27 @@ fun HorizonHomeScreen(
                         selectedAppIndex = 0
                         true
                     }
-                    nativeKeyCode == KeyEvent.KEYCODE_BUTTON_X -> {
+                    GamepadAction.TOGGLE_THEME -> {
                         soundManager.playSelectSound()
                         onToggleTheme()
                         true
                     }
-                    else -> false
+                    GamepadAction.BACK_CANCEL -> {
+                        if (isControllersHubOpen) {
+                            isControllersHubOpen = false
+                            true
+                        } else if (isQuickSettingsOpen) {
+                            isQuickSettingsOpen = false
+                            true
+                        } else if (isActiveAppsDrawerOpen) {
+                            isActiveAppsDrawerOpen = false
+                            true
+                        } else if (isAllAppsDrawerOpen) {
+                            isAllAppsDrawerOpen = false
+                            true
+                        } else false
+                    }
+                    null -> false
                 }
             }
     ) {
@@ -634,6 +652,16 @@ fun HorizonHomeScreen(
             onDismiss = { isQuickSettingsOpen = false }
         )
 
+        // Controllers & Custom Button Mapping Hub Dialog
+        ControllersHubDialog(
+            isOpen = isControllersHubOpen,
+            mappingRepo = gamepadMappingRepo,
+            bluetoothManager = bluetoothManager,
+            soundManager = soundManager,
+            isDarkTheme = isDarkTheme,
+            onDismiss = { isControllersHubOpen = false }
+        )
+
         // Game Boot Console Transition Overlay
         GameBootSplashScreen(
             app = bootingApp,
@@ -760,7 +788,7 @@ fun CategoryTabs(
                 Text(
                     text = catLabel,
                     fontSize = 12.5.sp,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                     color = if (isSelected) Color.White else if (isDarkTheme) Color.LightGray else Color.DarkGray,
                     maxLines = 1,
                     softWrap = false

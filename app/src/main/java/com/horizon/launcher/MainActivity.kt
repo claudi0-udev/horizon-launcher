@@ -2,6 +2,7 @@ package com.horizon.launcher
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -13,6 +14,8 @@ import com.horizon.launcher.data.AppRepository
 import com.horizon.launcher.data.BatteryRepository
 import com.horizon.launcher.data.FavoritesRepository
 import com.horizon.launcher.data.UserProfileRepository
+import com.horizon.launcher.gamepad.BluetoothControllerManager
+import com.horizon.launcher.gamepad.GamepadMappingRepository
 import com.horizon.launcher.model.AppModel
 import com.horizon.launcher.model.UserProfile
 import com.horizon.launcher.sound.SoundEffectManager
@@ -27,6 +30,8 @@ class MainActivity : ComponentActivity() {
     private lateinit var batteryRepository: BatteryRepository
     private lateinit var favoritesRepository: FavoritesRepository
     private lateinit var soundEffectManager: SoundEffectManager
+    private lateinit var gamepadMappingRepository: GamepadMappingRepository
+    private lateinit var bluetoothControllerManager: BluetoothControllerManager
 
     private val requestPermissionsLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -43,6 +48,8 @@ class MainActivity : ComponentActivity() {
         batteryRepository = BatteryRepository(this)
         favoritesRepository = FavoritesRepository(this)
         soundEffectManager = SoundEffectManager(this)
+        gamepadMappingRepository = GamepadMappingRepository(this)
+        bluetoothControllerManager = BluetoothControllerManager(this)
 
         checkAndRequestPermissions()
 
@@ -84,6 +91,8 @@ class MainActivity : ComponentActivity() {
                     isDarkTheme = isDarkTheme,
                     soundManager = soundEffectManager,
                     favoritesRepo = favoritesRepository,
+                    gamepadMappingRepo = gamepadMappingRepository,
+                    bluetoothManager = bluetoothControllerManager,
                     onToggleTheme = { isDarkTheme = !isDarkTheme },
                     onToggleFavoriteApp = { app ->
                         val isFav = favoritesRepository.toggleFavorite(app.packageName)
@@ -120,6 +129,7 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         soundEffectManager.release()
+        bluetoothControllerManager.unregisterReceiver()
     }
 
     private fun checkAndRequestPermissions() {
@@ -130,6 +140,20 @@ class MainActivity : ComponentActivity() {
         }
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
             permissionsToRequest.add(Manifest.permission.READ_CONTACTS)
+        }
+
+        // Bluetooth permissions
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(Manifest.permission.BLUETOOTH_SCAN)
+            }
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(Manifest.permission.BLUETOOTH_CONNECT)
+            }
+        } else {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
+            }
         }
 
         if (permissionsToRequest.isNotEmpty()) {
