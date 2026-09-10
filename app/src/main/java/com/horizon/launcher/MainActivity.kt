@@ -21,6 +21,7 @@ import com.horizon.launcher.model.UserProfile
 import com.horizon.launcher.sound.SoundEffectManager
 import com.horizon.launcher.ui.HorizonHomeScreen
 import com.horizon.launcher.ui.theme.HorizonLauncherTheme
+import com.horizon.launcher.update.UpdateManager
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -32,6 +33,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var soundEffectManager: SoundEffectManager
     private lateinit var gamepadMappingRepository: GamepadMappingRepository
     private lateinit var bluetoothControllerManager: BluetoothControllerManager
+    private lateinit var updateManager: UpdateManager
 
     private val requestPermissionsLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -50,6 +52,7 @@ class MainActivity : ComponentActivity() {
         soundEffectManager = SoundEffectManager(this)
         gamepadMappingRepository = GamepadMappingRepository(this)
         bluetoothControllerManager = BluetoothControllerManager(this)
+        updateManager = UpdateManager(this)
 
         checkAndRequestPermissions()
 
@@ -93,6 +96,7 @@ class MainActivity : ComponentActivity() {
                     favoritesRepo = favoritesRepository,
                     gamepadMappingRepo = gamepadMappingRepository,
                     bluetoothManager = bluetoothControllerManager,
+                    updateManager = updateManager,
                     onToggleTheme = { isDarkTheme = !isDarkTheme },
                     onToggleFavoriteApp = { app ->
                         val isFav = favoritesRepository.toggleFavorite(app.packageName)

@@ -41,6 +41,7 @@ fun QuickSettingsDrawer(
     isDarkTheme: Boolean,
     soundManager: SoundEffectManager,
     onToggleTheme: () -> Unit,
+    onCheckUpdates: () -> Unit = {},
     onDismiss: () -> Unit
 ) {
     if (!isOpen) return
@@ -253,6 +254,44 @@ fun QuickSettingsDrawer(
                                     color = textColor
                                 )
                             }
+                        }
+
+                        // Check for Updates Button
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (isDarkTheme) Color(0xFF383838) else Color(0xFFEFEFEF))
+                                .clickable {
+                                    soundManager.playSelectSound()
+                                    onCheckUpdates()
+                                    onDismiss()
+                                }
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.SystemUpdate,
+                                    contentDescription = "Actualizaciones",
+                                    tint = AccentCyan,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Buscar Actualizaciones",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = textColor
+                                )
+                            }
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                                contentDescription = "Verificar",
+                                tint = Color.Gray,
+                                modifier = Modifier.size(14.dp)
+                            )
                         }
 
                         // Game Booster RAM Cleaner Button

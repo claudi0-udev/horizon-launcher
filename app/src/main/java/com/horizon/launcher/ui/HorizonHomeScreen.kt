@@ -70,9 +70,12 @@ import com.horizon.launcher.ui.components.ControllersHubDialog
 import com.horizon.launcher.ui.components.GameBootSplashScreen
 import com.horizon.launcher.ui.components.QuickSettingsDrawer
 import com.horizon.launcher.ui.components.TopStatusBar
+import com.horizon.launcher.ui.components.UpdateDialog
 import com.horizon.launcher.ui.theme.AccentCyan
 import com.horizon.launcher.ui.theme.DarkBg
 import com.horizon.launcher.ui.theme.LightBg
+import com.horizon.launcher.update.UpdateInfo
+import com.horizon.launcher.update.UpdateManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -95,6 +98,7 @@ fun HorizonHomeScreen(
     favoritesRepo: FavoritesRepository,
     gamepadMappingRepo: GamepadMappingRepository,
     bluetoothManager: BluetoothControllerManager,
+    updateManager: UpdateManager,
     onToggleTheme: () -> Unit,
     onToggleFavoriteApp: (AppModel) -> Unit,
     onLaunchApp: (AppModel) -> Unit,
@@ -130,6 +134,8 @@ fun HorizonHomeScreen(
     var isActiveAppsDrawerOpen by remember { mutableStateOf(false) }
     var isQuickSettingsOpen by remember { mutableStateOf(false) }
     var isControllersHubOpen by remember { mutableStateOf(false) }
+    var isUpdateDialogOpen by remember { mutableStateOf(false) }
+    var availableUpdateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
     var bootingApp by remember { mutableStateOf<AppModel?>(null) }
 
     val filteredApps = remember(appsList, selectedCategory, searchQuery) {
@@ -158,11 +164,44 @@ fun HorizonHomeScreen(
         }
     }
 
+    // Automatic update check on startup
+    LaunchedEffect(Unit) {
+        coroutineScope.launch {
+            delay(2000L)
+            val res = updateManager.checkForUpdates()
+            if (res.isSuccess) {
+                val info = res.getOrNull()
+                if (info != null && info.hasUpdate) {
+                    availableUpdateInfo = info
+                    isUpdateDialogOpen = true
+                }
+            }
+        }
+    }
+
     val topBarFocusRequester = remember { FocusRequester() }
     val searchBarFocusRequester = remember { FocusRequester() }
     val bottomBarFocusRequesters = remember { List(8) { FocusRequester() } }
 
     val backgroundColor = if (isDarkTheme) DarkBg else LightBg
+
+    fun checkManualUpdate() {
+        Toast.makeText(context, "Buscando actualizaciones en GitHub...", Toast.LENGTH_SHORT).show()
+        coroutineScope.launch {
+            val res = updateManager.checkForUpdates()
+            if (res.isSuccess) {
+                val info = res.getOrNull()
+                if (info != null && info.hasUpdate) {
+                    availableUpdateInfo = info
+                    isUpdateDialogOpen = true
+                } else {
+                    Toast.makeText(context, "Horizon Launcher está al día (v${updateManager.getCurrentVersion()})", Toast.LENGTH_LONG).show()
+                }
+            } else {
+                Toast.makeText(context, "No se pudo conectar a GitHub", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     fun triggerAnimatedLaunch(targetApp: AppModel) {
         soundManager.playLaunchSound()
@@ -401,7 +440,10 @@ fun HorizonHomeScreen(
                         true
                     }
                     GamepadAction.BACK_CANCEL -> {
-                        if (isControllersHubOpen) {
+                        if (isUpdateDialogOpen) {
+                            isUpdateDialogOpen = false
+                            true
+                        } else if (isControllersHubOpen) {
                             isControllersHubOpen = false
                             true
                         } else if (isQuickSettingsOpen) {
@@ -649,6 +691,7 @@ fun HorizonHomeScreen(
             isDarkTheme = isDarkTheme,
             soundManager = soundManager,
             onToggleTheme = onToggleTheme,
+            onCheckUpdates = { checkManualUpdate() },
             onDismiss = { isQuickSettingsOpen = false }
         )
 
@@ -660,6 +703,16 @@ fun HorizonHomeScreen(
             soundManager = soundManager,
             isDarkTheme = isDarkTheme,
             onDismiss = { isControllersHubOpen = false }
+        )
+
+        // In-App Update Dialog
+        UpdateDialog(
+            isOpen = isUpdateDialogOpen,
+            updateInfo = availableUpdateInfo,
+            updateManager = updateManager,
+            soundManager = soundManager,
+            isDarkTheme = isDarkTheme,
+            onDismiss = { isUpdateDialogOpen = false }
         )
 
         // Game Boot Console Transition Overlay
